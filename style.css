@@ -102,3 +102,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px;lette
 .grade-tag.g-h{color:var(--red);border-color:#5a2530;font-weight:800}
 .target-row{background:#20202e}
 .target-row td:first-child{border-left:2px solid var(--gold)}
+.cost-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-top:8px}
+.cost-cell{background:#15151f;border:1px solid var(--line);border-radius:8px;padding:6px 8px;text-align:center}
+.cost-cell label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}
+.cost-cell input{width:100%;background:#12121c;border:1px solid var(--line);border-radius:6px;color:var(--gold);font-size:13px;font-weight:700;padding:5px 4px;text-align:center;font-family:inherit}
+.cost-cell input:focus{outline:none;border-color:var(--gold)}

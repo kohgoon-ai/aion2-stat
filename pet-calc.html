@@ -17,12 +17,12 @@
 
   <header class="head">
     <h1>아이온2 <span>펫 종족 이해도 계산기</span></h1>
-    <p class="sub">종족·슬롯·종족 이해도 레벨을 고르면, 원하는 옵션이 뽑힐 때까지 분석(리롤)을 몇 번 돌려야 하는지 기대값으로 계산합니다.</p>
+    <p class="sub">1~9번 슬롯에 원하는 옵션을 각각 목표로 걸어두면, 하나씩 나올 때마다 체크로 잠그면서 나머지를 계속 재분석(리롤)하는 실제 파밍 과정을 그대로 기대값으로 계산합니다.</p>
   </header>
 
   <div class="disclaimer">
     ⚠ 등급별·옵션별 확률은 <b>NC 공식 확률정보</b>(probability.plaync.com/aion2, "펫 종족 이해도" 카테고리, 2026-08-18(화) 20:06:35 갱신 스냅샷 기준)의 표 원문을 그대로 옮긴 것입니다. NC가 표를 갱신하면 실제 확률과 달라질 수 있습니다.<br>
-    <span class="disclaimer-note">* 1회 분석당 소모되는 영혼결정 개수는 위 공식 페이지에 공개되어 있지 않아 임의의 기본값(1개)을 사용합니다 — 실제 인게임 소모량으로 직접 바꿔서 계산해주세요. 값을 바꾸지 않으면 "예상 소모 영혼결정"은 "예상 시도 횟수"와 같은 숫자입니다.</span>
+    <span class="disclaimer-note">* "잠금 개수별 재분석 비용" 표는 NC 공식 페이지에 없는 수치라 사용자 제보값을 기본값으로 넣었습니다 — 패치로 바뀌었거나 다르게 확인되면 아래에서 직접 값을 고쳐서 계산해주세요.</span>
   </div>
 
   <div class="grid">
@@ -36,19 +36,6 @@
           <option value="자연">자연</option>
           <option value="변형">변형</option>
           <option value="특수">특수</option>
-        </select>
-      </div>
-      <div class="field"><label>슬롯</label>
-        <select id="slot">
-          <option value="1" selected>1번 슬롯</option>
-          <option value="2">2번 슬롯</option>
-          <option value="3">3번 슬롯</option>
-          <option value="4">4번 슬롯</option>
-          <option value="5">5번 슬롯</option>
-          <option value="6">6번 슬롯</option>
-          <option value="7">7번 슬롯</option>
-          <option value="8">8번 슬롯</option>
-          <option value="9">9번 슬롯</option>
         </select>
       </div>
       <div class="field"><label>종족 이해도 레벨</label>
@@ -65,43 +52,41 @@
           <option value="10" selected>Lv.10 (만렙)</option>
         </select>
       </div>
-      <div class="field"><label>목표 옵션</label>
-        <select id="targetOption"></select>
-      </div>
-      <div class="field"><label>1회 분석당 소모 영혼결정</label><input type="number" id="crystalCost" value="1" min="0" step="1"></div>
+
+      <div class="sect">잠금 개수별 재분석(1회) 비용 <span style="font-weight:400;letter-spacing:0">— 영혼결정, 직접 수정 가능</span></div>
+      <div id="costTable" class="cost-grid"></div>
 
       <div class="sect">계산 근거</div>
       <div class="note">
-        ※ 분석 1회는 2단계 확률입니다 — ① 종족 이해도 레벨에 따라 등급(일반/희귀/전승/유일/영웅)이 결정되고, ② 그 등급 안에서 종족·슬롯에 따라 구체적 옵션이 결정됩니다.<br>
-        ※ 목표 확률 = P(등급|레벨) × P(옵션|종족,슬롯,등급). 기대 시도 횟수 = 1 ÷ 목표 확률 (기하분포).<br>
-        ※ 50%·90% 도달 시도 = 누적 확률이 그 값 이상이 되는 최소 시도 횟수(올림) = ⌈ln(1-목표)/ln(1-확률)⌉.<br>
-        ※ 유일·영웅 등급은 레벨이 낮으면(유일: 1~6렙, 영웅: 1~8렙) 등급 자체가 0% 확률이라 "불가(미해금)"로 표시됩니다.<br>
-        ※ 기본 레벨을 10(만렙)으로 둔 이유: 이미 해금된 슬롯을 계속 재분석(리롤)해서 원하는 옵션을 노리는 게 실제 파밍 시나리오라 만렙 확률이 가장 현실적인 기준이기 때문입니다.
+        ※ 재분석 1회는 <b>그 시점에 잠기지 않은 슬롯 전부를 동시에</b> 다시 굴립니다. 슬롯마다 ① 종족 이해도 레벨에 따른 등급(일반/희귀/전승/유일/영웅) 확률과 ② 종족·슬롯·등급에 따른 옵션 확률을 곱해 그 슬롯의 1회 적중 확률을 구합니다.<br>
+        ※ 재분석 1회 비용은 "그 시점에 이미 잠긴 슬롯 개수"만 보고 정해집니다(위 표). 잠긴 슬롯이 늘수록 한 번 돌리는 비용이 올라갑니다.<br>
+        ※ "총 기대 영혼결정"은 9칸 전부 안 잠긴 상태에서 시작해 9칸 다 잠글 때까지의 기대값이고, "잔여 기대 영혼결정"은 지금 체크해둔 잠금 상태에서 이어서 다 잠글 때까지의 기대값입니다 — 아래 표에서 실제로 잠긴 슬롯을 체크하면서 그때그때 남은 기대치를 확인하세요.<br>
+        ※ 계산은 512(2⁹)가지 잠금 조합을 전부 따지는 정확한 기대값이며, 근사·시뮬레이션이 아닙니다.<br>
+        ※ 유일·영웅 등급은 레벨이 낮으면(유일: 1~6렙, 영웅: 1~8렙) 등급 자체가 0% 확률이라 그 옵션을 목표로 걸면 "불가(미해금)"로 표시됩니다.
       </div>
     </div>
 
     <div class="card2">
       <h2 class="r">계산 결과</h2>
-      <p class="hint" id="pTargetLabel" style="color:var(--txt);font-weight:700;font-size:13px">—</p>
       <div class="pockets">
-        <div class="pk"><div class="n">1회 성공 확률</div><div class="v" id="pProb">—</div></div>
-        <div class="pk"><div class="n">50% 도달 시도</div><div class="v" id="pN50">—</div></div>
-        <div class="pk"><div class="n">90% 도달 시도</div><div class="v" id="pN90">—</div></div>
+        <div class="pk"><div class="n">잠금 진행</div><div class="v" id="pProgress">—</div></div>
+        <div class="pk"><div class="n">총 기대 재분석 횟수 (처음부터)</div><div class="v" id="pRerollsTotal">—</div></div>
+        <div class="pk"><div class="n">잔여 기대 재분석 횟수</div><div class="v" id="pRerollsLeft">—</div></div>
       </div>
       <div class="pockets one">
-        <div class="pk wide"><div class="n">기대 시도 횟수 (핵심 지표)</div><div class="v big" id="pExp">—</div></div>
+        <div class="pk wide"><div class="n">잔여 기대 영혼결정 (지금부터 · 핵심 지표)</div><div class="v big" id="pCrystalLeft">—</div></div>
       </div>
       <div class="divider"></div>
       <div class="pockets one">
-        <div class="pk"><div class="n">예상 소모 영혼결정 (참고용 · 소모량 미확인)</div><div class="v" id="pCrystal">—</div></div>
+        <div class="pk"><div class="n">총 기대 영혼결정 (9칸 전부 처음부터)</div><div class="v" id="pCrystalTotal">—</div></div>
       </div>
     </div>
   </div>
 
   <div class="card" style="margin-top:18px">
-    <h2>현재 종족·슬롯·레벨 기준 전체 옵션표 <span style="color:var(--muted);font-weight:400;font-size:12px">— 기대 시도 횟수 오름차순 (쉬운 순)</span></h2>
-    <div id="optTable" style="overflow-x:auto"></div>
-    <div class="note">※ "1회 확률"은 등급 확률 × 옵션 확률을 곱한 최종 확률입니다. 같은 옵션이라도 등급이 다르면(예: 유일 vs 영웅) 수치 범위와 확률이 다르므로 별도 행으로 표시됩니다.</div>
+    <h2>슬롯별 목표 설정 &amp; 잠금 진행</h2>
+    <div id="slotTable" style="overflow-x:auto"></div>
+    <div class="note">※ "1회 적중 확률"은 그 슬롯 하나만 볼 때 재분석 1회에 목표 옵션이 나올 확률입니다(등급 확률 × 옵션 확률). 잠금을 체크하면 그 슬롯은 이후 재분석 대상에서 빠집니다.</div>
   </div>
 
   <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
