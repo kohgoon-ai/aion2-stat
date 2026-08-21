@@ -94,3 +94,11 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px;lette
 .odd-table tbody tr:hover{background:#1c1c2a}
 .odd-nick{color:var(--muted);font-size:11px}
 .odd-eff{color:var(--gold);font-weight:700}
+.grade-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#15151f;border:1px solid var(--line)}
+.grade-tag.g-n{color:#9a9ab2}
+.grade-tag.g-r{color:#6fb3e0;border-color:#2a4a63}
+.grade-tag.g-l{color:#b98ee6;border-color:#453260}
+.grade-tag.g-u{color:var(--gold);border-color:#5a4726}
+.grade-tag.g-h{color:var(--red);border-color:#5a2530;font-weight:800}
+.target-row{background:#20202e}
+.target-row td:first-child{border-left:2px solid var(--gold)}
