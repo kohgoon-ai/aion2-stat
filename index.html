@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이온2 스탯 효율 계산기</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <a href="index.html" class="on">스탯 계산기</a>
+    <a href="checklist.html">숙제 체크리스트</a>
+    <a href="odd-calc.html">오드→키나 계산기</a>
+  </nav>
+
+  <header class="head">
+    <h1>아이온2 <span>스탯 효율 계산기</span></h1>
+    <p class="sub">입력한 스탯으로 실효 공격력과 상대 데미지 지수를 계산합니다. 스킬 계수가 빠져 있어 실제 피해량이 아닌 <b>세팅 비교 전용</b> 수치입니다.</p>
+  </header>
+
+  <div class="disclaimer">
+    ⚠ 이 계산기는 공식 개발사(NCSOFT) 자료가 아니라 커뮤니티에서 실험적으로 검증한 공식(여러 팬메이드 계산기 교차검증)을 기반으로 합니다.<br>
+    <span class="disclaimer-note">* PVP 모드는 PVE 전용 보너스만 제외하고 계산되어서 참고 수치로만 봐주세요.</span>
+  </div>
+
+  <div class="grid">
+    <!-- 입력 -->
+    <div class="card">
+      <h2>내 스탯 입력</h2>
+
+      <div class="field combat-toggle">
+        <label>전투 유형</label>
+        <select id="combatType">
+          <option value="pve" selected>PVE (보스)</option>
+          <option value="pvp">PVP (유저)</option>
+        </select>
+      </div>
+      <div class="field combat-toggle">
+        <label>스킬 유형</label>
+        <select id="skillType">
+          <option value="normal" selected>일반 (치명타 상한 80%)</option>
+          <option value="guaranteed">확정치명 (치명타 상한 100%)</option>
+        </select>
+      </div>
+
+      <div class="core-cols">
+        <div class="core-col">
+          <div class="sect" style="margin-top:0">공격력</div>
+          <div class="field"><label>공격력 (스탯창 · 장비 착용)</label><input type="number" id="atk" value="13252"></div>
+          <div class="field"><label>공격력 (모든 장비 해제 시)</label><input type="number" id="atkNaked" value="1423"></div>
+          <div class="field"><label>파괴 (스탯창 수치 · 1당 0.2%)</label><input type="number" id="destr" value="150"></div>
+          <div class="field"><label>위력 (스탯창 수치 · 1당 0.1%)</label><input type="number" id="power" value="340"></div>
+          <div class="field"><label>장비 돌파 부위 수 (부위당 +5%)</label><input type="number" id="brk" value="9" min="0" max="9"></div>
+          <div class="hint" id="incView">공격력 증가율: —</div>
+        </div>
+
+        <div class="core-col">
+          <div class="sect" style="margin-top:0">증폭 스탯 (합연산 그룹)</div>
+          <div class="field"><label>피해 증폭 %</label><input type="number" id="amp" value="59" step="0.1"></div>
+          <div id="pveFields">
+            <div class="field"><label>PVE 피해 증폭 %</label><input type="number" id="pve" value="95.2" step="0.1"></div>
+            <div class="field"><label>보스 피해 증폭 %</label><input type="number" id="boss" value="11.5" step="0.1"></div>
+          </div>
+          <div id="pvpFields" style="display:none">
+            <div class="field"><label>PVP 피해 증폭 %</label><input type="number" id="pvpAmp" value="0" step="0.1"></div>
+          </div>
+        </div>
+
+        <div class="core-col">
+          <div class="sect" style="margin-top:0">방향 · 치명타 · 강타 (곱연산 그룹)</div>
+          <div class="field"><label>무기 피해 증폭 %</label><input type="number" id="wdmg" value="62.8" step="0.1"></div>
+          <div class="field"><label>공격 방향 (한 번의 타격은 한 방향만 적용)</label>
+            <select id="attackDirection">
+              <option value="back" selected>후방</option>
+              <option value="front">전방 (헤드어택)</option>
+              <option value="none">해당없음</option>
+            </select>
+          </div>
+          <div class="field"><label>후방 피해 증폭 % (뒤에서 타격)</label><input type="number" id="rear" value="26.4" step="0.1"></div>
+          <div class="field"><label>후방 공격 성공률 %</label><input type="number" id="back" value="80" step="1"></div>
+          <div class="field"><label>전방 피해 증폭 % (헤드어택 · 앞에서 타격)</label><input type="number" id="frontAmp" value="0" step="0.1"></div>
+          <div class="field"><label>헤드어택률 % (추정치)</label><input type="number" id="frontRate" value="0" step="1"></div>
+          <div class="field"><label>치명타 피해 증폭 %</label><input type="number" id="cdmg" value="76" step="0.1"></div>
+          <div class="field"><label>치명타 적중률 % (100 캡)</label><input type="number" id="crate" value="80" step="1"></div>
+          <div class="field"><label>강타 % (스탯창 수치)</label><input type="number" id="smite" value="82.6" step="0.1"></div>
+          <div class="field"><label>파티 강타 버프</label>
+            <select id="sbuff">
+              <option value="0">없음 (솔로)</option>
+              <option value="5">호법 +5%</option>
+              <option value="12" selected>치유 +12%</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="sect" style="margin-top:14px">무기 범위 (완벽 계산용)</div>
+      <div class="field"><label>무기 최소 공격력</label><input type="number" id="weaponMinAttack" value="523"></div>
+      <div class="field"><label>무기 최대 공격력</label><input type="number" id="weaponMaxAttack" value="658"></div>
+      <div class="field"><label>최대 공격력 (별도 스탯)</label><input type="number" id="maximumAttack" value="233"></div>
+
+      <div class="sect">기타 증폭</div>
+      <div class="field"><label>종족 피해 증폭 %</label><input type="number" id="race" value="0" step="0.1"></div>
+
+      <div class="sect">완벽 · 다단 히트</div>
+      <div class="field"><label>완벽 %</label><input type="number" id="perfect" value="0" step="0.1"></div>
+      <div class="field"><label>다단 히트 적중 %</label><input type="number" id="multiHit" value="0" step="0.1"></div>
+      <div class="field"><label>다단 히트 발동 방식</label>
+        <select id="multiHitMode">
+          <option value="normal" selected>일반</option>
+          <option value="plus50">발동 시 +50% 보정</option>
+          <option value="guaranteed">확정 발동</option>
+        </select>
+      </div>
+
+      <div class="sect">관통 / 대상 방어·저항</div>
+      <div class="field"><label>관통</label><input type="number" id="penetration" value="0"></div>
+      <div class="field"><label id="targetDefenseLabel">보스 방어력</label><input type="number" id="targetDefense" value="0"></div>
+      <div class="field"><label id="targetResistLabel">보스 피해 내성 % (합연산 그룹에서 차감)</label><input type="number" id="targetResist" value="0" step="0.1"></div>
+      <div class="field"><label id="targetWeaponResLabel">보스 무기 피해 내성 %</label><input type="number" id="targetWeaponRes" value="0" step="0.1"></div>
+      <div class="field"><label id="targetCritDmgResLabel">보스 치명타 피해 내성 %</label><input type="number" id="targetCritDmgRes" value="0" step="0.1"></div>
+      <div class="field"><label id="targetDirResLabel">보스 방향 피해 내성 %</label><input type="number" id="targetDirectionalRes" value="0" step="0.1"></div>
+      <div class="field"><label id="targetPerfectResLabel">보스 완벽 저항 %</label><input type="number" id="targetPerfectRes" value="0" step="0.1"></div>
+      <div class="field"><label id="smiteResistLabel">보스 강타 저항 %</label><input type="number" id="smiteResist" value="30" step="1"></div>
+
+      <div class="warn" id="warn"></div>
+    </div>
+
+    <!-- 결과 -->
+    <div class="card2">
+      <h2 class="r">계산 결과</h2>
+      <div class="pockets">
+        <div class="pk"><div class="n">기본 공격력</div><div class="v" id="pBase">—</div></div>
+        <div class="pk"><div class="n">장비 공격력</div><div class="v" id="pGear">—</div></div>
+        <div class="pk"><div class="n">실효 공격력</div><div class="v" id="pEff">—</div></div>
+      </div>
+      <div class="pockets one">
+        <div class="pk wide"><div class="n">상대 데미지 지수 (세팅 비교 전용)</div><div class="v big" id="pFinal">—</div></div>
+      </div>
+      <div class="mults" id="mults"></div>
+      <div class="divider"></div>
+      <div class="sect">+1%p(또는 +10) 투자 시 데미지 상승 효율 순위</div>
+      <div id="bars"></div>
+      <div class="note">
+        ※ 효율 = 해당 스탯 1단위 상승 ÷ 최종 데미지. 이미 크게 쌓인 스탯일수록 같은 1단위의 체감이 낮아집니다.<br>
+        ※ 관통·방어력: 방어력이 관통보다 클 때만 그 차이의 1/10이 고정 감소로 적용됩니다. 관통이 방어력을 넘어서도 그 초과분이 보너스 데미지가 되지는 않습니다.<br>
+        ※ PVE 모드: 피해 증폭·PVE 피증·보스 피증·종족 피증이 서로 합연산 / PVP 모드: 피해 증폭·PVP 피증만 합연산 (PVE·PVP 증폭은 동시에 적용되지 않습니다). 대상 피해 내성만큼 차감됩니다.<br>
+        ※ 치명타 적중률은 일반 스킬 80%, 확정치명 스킬 100%가 상한입니다. 치명타 배율은 기본 +50%에 (치명타 피해 증폭－대상 치명타 피해 내성)를 더합니다.<br>
+        ※ 강타 %는 파티 버프를 더하고 대상 강타 저항을 뺀 값이 실제 발동률로 적용되며, 완벽과 상호작용해 최종 기대 데미지를 함께 산출합니다.<br>
+        ※ 후방·전방 피해 증폭은 서로 배타적입니다 — 한 번의 타격은 후방이거나 전방이거나 둘 중 하나만 해당하므로, "공격 방향" 선택에 따라 그 방향의 배율 하나만 계산에 반영되고 대상 방향 피해 내성만큼 차감됩니다. 헤드어택률은 실측 자료가 부족해 추정치입니다.<br>
+        ※ 완벽은 무기 최소~최대 공격력 범위와 대상 완벽 저항을 반영해 기대 데미지에 블렌딩됩니다. 다단 히트는 발동 방식(일반/+50%보정/확정)에 따라 기대 추가타수를 계산해 반영합니다.<br>
+        ※ 무기 피해 증폭은 (무기 피해 증폭－대상 무기 피해 내성)만큼만 적용됩니다.<br>
+        ※ 플랫 공격력은 들어가는 주머니에 따라 배율이 다릅니다 — 마석·강화 등 장비 옵션(장비공: 무기피증×증가율 적용), 추가공격력류(기본공: 증가율만 적용).
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>부위별 세팅 추천 <span style="color:var(--muted);font-weight:400;font-size:12px">— 실측 상위 채용 옵션 기반</span></h2>
+    <div id="slotRecommend" class="slot-grid"></div>
+    <div class="note">⭐ 표시는 지금 입력한 스탯 기준으로 가장 효율 좋은 항목입니다. 각인 목록은 cielui.com 공개 통계(부위당 표본 1만+ 명, 2026-08-21 스냅샷 · 비공식 커뮤니티 데이터)의 실측 채용률 기준이고, 마석 목록은 채용률이 아니라 <b>이 계산기 공식으로 직접 계산한 실효율</b>입니다 (마석 raw 100 ≈ 1.2%p 추정치 적용). 후방피증은 후방 공격 조건이 붙는 상황부라 항상 1순위는 아닐 수 있습니다.</div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>업데이트 내역</h2>
+    <ul class="changelog">
+      <li><span class="cd">2026-08-21</span> 오드→키나 계산기: "10오드당(참고)" 열을 "던전 1회당(멤버십 적용/미적용)"으로 변경 — 토글 없이도 두 시나리오를 한 번에 비교</li>
+      <li><span class="cd">2026-08-21</span> 오드→키나 계산기: 던전 하나씩 골라 계산하던 방식에서 "보유 오드"를 넣으면 표의 모든 던전에 대해 총 클리어 횟수·총 획득 키나가 동시에 계산되는 방식으로 변경</li>
+      <li><span class="cd">2026-08-21</span> 오드→키나 계산기: "남투" 오타를 "남툴"로 수정, 원정/초월/성역 구분 표시(원정→초월 순), 8/12 패치 신규 던전(잠식된 데우스 연구기지·노이란의 숨겨진 유산) 추가 — 각각 타락한 데바의 성·심연의 뿔 암굴과 동일 수치라는 제보 반영</li>
+      <li><span class="cd">2026-08-21</span> "오드→키나 계산기" 페이지 신설 — 원정·초월 37개 던전 오드 효율 순위, 보유 오드로 예상 획득 키나 계산 (인벤 커뮤니티 자료 기반, 성역은 오드 미사용이라 제외)</li>
+      <li><span class="cd">2026-08-21</span> <b>계산 오류 수정</b>: 후방·전방 피해 증폭을 동시에 곱연산 적용하던 버그 수정 — 한 번의 타격은 한 방향만 해당하므로 "공격 방향" 선택(후방/전방/해당없음)에 따라 그 방향 배율 하나만 반영되도록 변경</li>
+      <li><span class="cd">2026-08-21</span> PC 화면 기준 핵심 입력 섹션(공격력/증폭/방향·치명타·강타) 3열 가로 배치, 결과 카드 스크롤 고정(sticky) — 페이지 폭 확장(1080→1400px)</li>
+      <li><span class="cd">2026-08-21</span> 입력 폼을 핵심(공격력·증폭·치명타·강타)/고급(관통·대상저항·완벽·다단히트·전방피증·종족피증) 2단으로 분리 — "고급 설정 펼치기"는 마지막 상태를 기억합니다</li>
+      <li><span class="cd">2026-08-21</span> 스탯 계산기 입력값 자동 저장 — 새로고침·재방문해도 마지막 입력이 그대로 유지됩니다 (브라우저 로컬 저장)</li>
+      <li><span class="cd">2026-08-21</span> 숙제 체크리스트를 일일/주간 2분류에서 <b>일일 리셋·주간 리셋·충전형(5시·17시)·요일 지정 리셋(화·목·토 21시)</b> 4개 그룹으로 재구성 — aion2tool.com 실제 숙제 목록 참고</li>
+      <li><span class="cd">2026-08-21</span> 숙제 체크리스트 페이지 신설 — 일일/주간 컨텐츠 체크, 요일·시각 설정 가능한 자동 초기화, 항목 자유 추가/삭제 (브라우저 로컬 저장)</li>
+      <li><span class="cd">2026-08-21</span> 관통·방어력 클램프 버그 수정(초과 관통이 보너스 데미지가 되지 않도록), 치명타 적중률 상한을 스킬 유형별(일반 80%/확정치명 100%)로 분리, 완벽·다단 히트 실제 모델링, 대상 무기/치명타/방향/완벽 저항 4종 추가 — 레퍼런스 사이트 실제 계산 엔진 코드 교차검증 기반</li>
+      <li><span class="cd">2026-08-21</span> PVE/PVP 전투 유형 분리 — 대상 방어력·피해내성·강타저항 라벨이 전투 유형에 맞춰 바뀌고, PVP 피해 증폭 필드 추가</li>
+      <li><span class="cd">2026-08-21</span> 마석 추천을 채용률 기반에서 계산기 공식으로 직접 계산하는 실효율 기반으로 수정 (채용률과 실제 효율이 다를 수 있음을 확인)</li>
+      <li><span class="cd">2026-08-21</span> 전방 피해 증폭(헤드어택) 필드 신설 — 후방 피해 증폭과 대칭 구조로 반영</li>
+      <li><span class="cd">2026-08-21</span> 부위별 세팅 추천(각인 + 마석) 추가 — cielui.com 공개 통계 기반</li>
+      <li><span class="cd">2026-08-21</span> 관통·방어력 고정 가감, 종족 피해 증폭, 대상 피해 내성 반영</li>
+      <li><span class="cd">2026-08-21</span> 계산기 최초 공개 — 실효 공격력, 치명타·강타·증폭 배율 계산</li>
+    </ul>
+  </div>
+
+  <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

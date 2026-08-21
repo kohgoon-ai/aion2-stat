@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이온2 숙제 체크리스트</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <a href="index.html">스탯 계산기</a>
+    <a href="checklist.html" class="on">숙제 체크리스트</a>
+    <a href="odd-calc.html">오드→키나 계산기</a>
+  </nav>
+
+  <header class="head">
+    <h1>아이온2 <span>숙제 체크리스트</span></h1>
+    <p class="sub">리셋 방식이 서로 다른 컨텐츠를 그룹별로 나눠서 체크합니다. 각 그룹의 리셋 시각이 지나면 해당 그룹만 자동 초기화됩니다.</p>
+  </header>
+
+  <div class="card" style="margin-top:16px">
+    <h2>일일·주간 리셋 시각 설정 <span style="color:var(--muted);font-weight:400;font-size:12px">— 충전형·화목토형은 확인된 시각(5시·17시 / 화·목·토 21시)으로 고정</span></h2>
+    <div class="field"><label>일일 초기화 시각 (0~23시)</label><input type="number" id="dailyHour" value="6" min="0" max="23" step="1"></div>
+    <div class="field"><label>주간 초기화 요일</label>
+      <select id="weeklyDay">
+        <option value="0">일요일</option>
+        <option value="1">월요일</option>
+        <option value="2">화요일</option>
+        <option value="3" selected>수요일</option>
+        <option value="4">목요일</option>
+        <option value="5">금요일</option>
+        <option value="6">토요일</option>
+      </select>
+    </div>
+    <div class="field"><label>주간 초기화 시각 (0~23시)</label><input type="number" id="weeklyHour" value="6" min="0" max="23" step="1"></div>
+  </div>
+
+  <div id="groups" class="groups-grid"></div>
+
+  <footer>비공식 팬메이드 도구 · 체크 데이터는 브라우저 로컬에만 저장됩니다</footer>
+</div>
+<script src="checklist.js"></script>
+</body>
+</html>

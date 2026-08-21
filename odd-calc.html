@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이온2 오드→키나 계산기</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <a href="index.html">스탯 계산기</a>
+    <a href="checklist.html">숙제 체크리스트</a>
+    <a href="odd-calc.html" class="on">오드→키나 계산기</a>
+  </nav>
+
+  <header class="head">
+    <h1>아이온2 <span>오드→키나 계산기</span></h1>
+    <p class="sub">원정·초월 던전에 오드 에너지를 어디에 쓰는 게 가장 키나 효율이 좋은지 구분해서 보여줍니다.</p>
+  </header>
+
+  <div class="card" style="margin-top:16px;border-color:#4a3a25">
+    <h2>신규 컨텐츠 (2026-08-12 패치)</h2>
+    <p style="font-size:13px;color:var(--txt);line-height:1.7">
+      8/12 패치로 <b>잠식된 데우스 연구기지</b>(원정)와 <b>노이란의 숨겨진 유산</b>(초월)이 추가됐습니다.
+      아래 표에 반영된 이 두 던전의 오드 소모량·획득 키나 수치는 별도 커뮤니티 정리글이 아니라,
+      <b>"데우스 연구기지=타락한 데바의 성과 동일", "노이란=심연의 뿔 암굴과 동일"이라는 직접 플레이 기반 제보</b>를 그대로 미러링한 것입니다.
+      패치 이후 밸런스가 조정됐다면 다를 수 있습니다.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>오드 예산</h2>
+    <div class="field"><label>보유 오드</label><input type="number" id="oddBudget" value="560" step="10"></div>
+    <div class="field"><label>멤버십 배율</label>
+      <select id="membership">
+        <option value="1" selected>콰이링 특급 멤버십 있음 (표 수치 그대로)</option>
+        <option value="0.5">멤버십 없음 (추정 · 절반)</option>
+      </select>
+    </div>
+    <p class="hint">아래 표의 "총 클리어"·"총 획득 키나"는 이 보유 오드를 각 던전에 전부 썼을 때 기준으로 던전마다 계산됩니다.</p>
+  </div>
+
+  <div id="oddTables"></div>
+
+  <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
+</div>
+<script src="odd-calc.js"></script>
+</body>
+</html>
