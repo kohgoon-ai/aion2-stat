@@ -154,6 +154,49 @@ function fmtNum(n, unit) {
   return Math.ceil(n).toLocaleString('ko-KR') + unit;
 }
 
+// "영혼결정 N개로 완성 확률" — 재분석 결과는 매번 랜덤이라 실제 소모량이 기대값 주변에 흩어진다.
+// 그 분포를 몬테카를로 시뮬레이션(같은 조건으로 SIM_TRIALS번 처음부터 끝까지 가상 파밍)으로 근사해
+// "예산 이내로 끝난 시행 비율"을 확률로 보여준다. 정확한 기대값(expectedToLockAll)과 달리 표본 기반 근사치.
+const SIM_TRIALS = 5000;
+const SIM_CAP_REROLLS = 25000; // 극단적으로 낮은 확률(미해금 근처) 대비 시행당 안전 상한
+function simulateCosts(ps, costTable) {
+  const m = ps.length;
+  if (m === 0) return new Float64Array([0]);
+  if (ps.some(p => !(p > 0))) return null; // 목표 중 하나라도 확률 0(미해금) -> 시뮬레이션 불가
+  const full = (1 << m) - 1;
+  const out = new Float64Array(SIM_TRIALS);
+  for (let t = 0; t < SIM_TRIALS; t++) {
+    let lockedMask = 0, lockedCount = 9 - m, cost = 0, iters = 0;
+    while (lockedMask !== full && iters < SIM_CAP_REROLLS) {
+      iters++;
+      cost += costTable[lockedCount];
+      for (let i = 0; i < m; i++) {
+        const bit = 1 << i;
+        if (!(lockedMask & bit) && Math.random() < ps[i]) { lockedMask |= bit; lockedCount++; }
+      }
+    }
+    out[t] = cost;
+  }
+  out.sort();
+  return out;
+}
+
+function countLE(sortedArr, budget) {
+  let lo = 0, hi = sortedArr.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; sortedArr[mid] <= budget ? lo = mid + 1 : hi = mid; }
+  return lo;
+}
+
+let simSortedTotal = null, simSortedLeft = null;
+const budgetEl = $('budget');
+
+function updateBudgetProb() {
+  const budget = Math.max(0, parseFloat(budgetEl.value) || 0);
+  const fmtP = arr => arr === null ? '불가 (미해금)' : (countLE(arr, budget) / arr.length * 100).toFixed(1) + '%';
+  $('pBudgetProbLeft').textContent = fmtP(simSortedLeft);
+  $('pBudgetProbTotal').textContent = fmtP(simSortedTotal);
+}
+
 function calc() {
   const race = raceSel.value;
   const level = parseInt(levelSel.value, 10);
@@ -184,10 +227,15 @@ function calc() {
   $('pRerollsLeft').textContent = fmtNum(rerollLeft, '회');
   $('pCrystalTotal').textContent = fmtNum(crystalTotal, '개');
   $('pCrystalLeft').textContent = fmtNum(crystalLeft, '개');
+
+  simSortedTotal = simulateCosts(psAll, cost);
+  simSortedLeft = lockedSlots.length === 0 ? simSortedTotal : simulateCosts(psLeft, cost);
+  updateBudgetProb();
 }
 
 raceSel.addEventListener('change', () => { rebuildSlotOptions(); calc(); });
 levelSel.addEventListener('change', calc);
+budgetEl.addEventListener('input', updateBudgetProb);
 
 renderCostTable();
 costTableEl.addEventListener('input', calc);
