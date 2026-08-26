@@ -10,7 +10,7 @@ const STAGE_ORDER = ['기본', '상급', '최상급'];
 const itemSel = $('itemName'), gradeSel = $('gearGrade');
 const slotTableEl = $('slotTable'), budgetEl = $('budget');
 
-// 슬롯별 상태: 목표 옵션 index(flattenOptions 기준), 잠금 여부. 등급 바뀔 때 크기 조정.
+// 슬롯별 상태: 목표 옵션 index(flattenOptions 기준), 완료 체크 여부(게임 내 기능 아님, 계산용 표시). 등급 바뀔 때 크기 조정.
 let slotState = [];
 
 function flattenOptions(itemName) {
@@ -49,7 +49,7 @@ function renderSlotTable() {
   slotTableEl.innerHTML = `
     <table class="odd-table">
       <thead><tr>
-        <th>슬롯</th><th>목표 스탯</th><th>1회 적중 확률</th><th>잠금</th>
+        <th>슬롯</th><th>목표 스탯</th><th>1회 적중 확률</th><th>완료</th>
       </tr></thead>
       <tbody>${rows.join('')}</tbody>
     </table>`;

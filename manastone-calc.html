@@ -77,7 +77,7 @@
       <h2 class="r">계산 결과</h2>
       <p class="hint">※ 아래 "기대 개수"는 확률이 아니라, 슬롯을 전부 채울 때까지 <b>평균적으로 몇 개 만들어야 하는가</b>를 계산한 기대값입니다.</p>
       <div class="pockets">
-        <div class="pk"><div class="n">잠금 진행</div><div class="v" id="pProgress">—</div></div>
+        <div class="pk"><div class="n">완료 진행</div><div class="v" id="pProgress">—</div></div>
         <div class="pk"><div class="n">총 기대 개수 (처음부터)</div><div class="v" id="pTotal">—</div></div>
         <div class="pk"><div class="n">잔여 기대 개수</div><div class="v" id="pLeft">—</div></div>
       </div>
@@ -95,9 +95,9 @@
   </div>
 
   <div class="card" style="margin-top:18px">
-    <h2>슬롯별 목표 설정 &amp; 잠금 진행</h2>
+    <h2>슬롯별 목표 설정 &amp; 완료 체크</h2>
     <div id="slotTable" style="overflow-x:auto"></div>
-    <div class="note">※ "1회 적중 확률"은 마석/영석 하나를 만들 때 그 목표 스탯이 나올 확률입니다(등급 확률 × 스탯 확률). 잠금을 체크하면 그 슬롯은 이후 계산에서 빠집니다.</div>
+    <div class="note">※ "1회 적중 확률"은 마석/영석 하나를 만들 때 그 목표 스탯이 나올 확률입니다(등급 확률 × 스탯 확률). "완료" 체크는 게임 내 기능이 아니라, 이미 원하는 스탯을 얻어서 채운 슬롯을 표시해두는 용도입니다 — 체크하면 그 슬롯은 이후 계산에서 빠집니다. 마석/영석은 펫 이해도와 달리 슬롯을 한꺼번에 묶어서 다시 돌리는 기능 자체가 없고, 하나씩 만들어서 마음에 들면 바로 박는 방식입니다.</div>
   </div>
 
   <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
