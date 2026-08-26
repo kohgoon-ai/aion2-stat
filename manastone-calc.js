@@ -7,7 +7,7 @@ const MANASTONE_DATA ={"하급 심연의 마석":{"기본":{"pct":50.0,"opts":[[
 
 const STAGE_ORDER = ['기본', '상급', '최상급'];
 
-const itemSel = $('itemName'), gradeSel = $('gearGrade');
+const itemSel = $('itemName'), countSel = $('targetCount');
 const slotTableEl = $('slotTable'), budgetEl = $('budget');
 
 // 슬롯별 상태: 목표 옵션 index(flattenOptions 기준), 완료 체크 여부(게임 내 기능 아님, 계산용 표시). 등급 바뀔 때 크기 조정.
@@ -25,7 +25,7 @@ function flattenOptions(itemName) {
   return list;
 }
 
-function slotCount() { return parseInt(gradeSel.value, 10); }
+function slotCount() { return parseInt(countSel.value, 10); }
 
 function ensureSlotStateSize() {
   const n = slotCount();
@@ -40,7 +40,7 @@ function renderSlotTable() {
   for (let i = 0; i < n; i++) {
     rows.push(`
         <tr class="${slotState[i].locked ? 'target-row' : ''}">
-          <td>${i + 1}번</td>
+          <td>목표 ${i + 1}</td>
           <td><select class="targetSel" data-i="${i}"></select></td>
           <td class="odd-eff" id="pRow${i}">—</td>
           <td style="text-align:center"><input type="checkbox" class="lockChk" data-i="${i}" ${slotState[i].locked ? 'checked' : ''}></td>
@@ -49,7 +49,7 @@ function renderSlotTable() {
   slotTableEl.innerHTML = `
     <table class="odd-table">
       <thead><tr>
-        <th>슬롯</th><th>목표 스탯</th><th>1회 적중 확률</th><th>완료</th>
+        <th>목표</th><th>목표 스탯</th><th>1회 적중 확률</th><th>완료</th>
       </tr></thead>
       <tbody>${rows.join('')}</tbody>
     </table>`;
@@ -202,7 +202,7 @@ function calc() {
 }
 
 itemSel.addEventListener('change', () => { rebuildTargetSelects(); calc(); });
-gradeSel.addEventListener('change', () => { renderSlotTable(); calc(); });
+countSel.addEventListener('change', () => { renderSlotTable(); calc(); });
 budgetEl.addEventListener('input', updateBudgetProb);
 
 renderSlotTable();
