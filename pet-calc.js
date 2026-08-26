@@ -33,8 +33,8 @@ const PHASE_LABEL = { 1: '1차', 2: '2차', 3: '3차' };
 const raceSel = $('race'), levelSel = $('level');
 const costTableEl = $('costTable'), slotTableEl = $('slotTable'), phaseTableEl = $('phaseTable');
 
-// 슬롯별 상태: 목표 옵션 index(currentList 기준), 잠금 여부, 우선순위(1~3차), 허용 최소값(범위 옵션용).
-const slotState = SLOTS.reduce((acc, s) => { acc[s] = { idx: 0, locked: false, phase: DEFAULT_PHASE[s], minVal: 0 }; return acc; }, {});
+// 슬롯별 상태: 목표 옵션들(여러 개 중 하나라도 나오면 OK — [{idx, minVal}, ...]), 잠금 여부, 우선순위(1~3차).
+const slotState = SLOTS.reduce((acc, s) => { acc[s] = { targets: [{ idx: 0, minVal: 0 }], locked: false, phase: DEFAULT_PHASE[s] }; return acc; }, {});
 
 function optionsForSlot(race, slot) {
   const list = [];
@@ -43,6 +43,7 @@ function optionsForSlot(race, slot) {
       list.push({ grade: g, opt, range, p });
     });
   });
+  list.forEach((e, i) => { e.idx = i; });
   return list;
 }
 
@@ -86,26 +87,42 @@ function readCostTable() {
   return Array.from(costTableEl.querySelectorAll('.costInput')).map(el => Math.max(0, parseFloat(el.value) || 0));
 }
 
-function currentEntry(race, slot) {
-  const list = optionsForSlot(race, slot);
-  const e = list[slotState[slot].idx] || list[0];
-  return Object.assign({}, e, { minVal: slotState[slot].minVal });
+// 슬롯 하나의 1회 적중 확률 = 그 슬롯에 걸어둔 목표들(각각 등급×옵션×허용범위 확률) 합.
+// 한 번의 재분석에서 한 슬롯엔 옵션이 하나만 나오므로 서로 겹치지 않아 그냥 더하면 된다.
+function slotProb(race, s, level) {
+  const list = optionsForSlot(race, s);
+  return slotState[s].targets.reduce((sum, t) => {
+    const entry = list[t.idx];
+    if (!entry) return sum;
+    return sum + pOf(Object.assign({}, entry, { minVal: t.minVal }), level);
+  }, 0);
 }
 
-function updateMinValUI(s) {
-  const cell = document.getElementById('rangeCell' + s);
+function renderTargetDetail(s) {
+  const cell = document.getElementById('detailCell' + s);
   if (!cell) return;
   const race = raceSel.value;
-  const entry = currentEntry(race, s);
-  const range = parseRange(entry.range);
-  if (!(range.max > range.min)) {
-    cell.innerHTML = '<span class="odd-nick">범위 없음</span>';
+  const list = optionsForSlot(race, s);
+  if (slotState[s].targets.length === 0) {
+    cell.innerHTML = '<span class="odd-nick">목표 없음</span>';
     return;
   }
-  cell.innerHTML = `<input type="number" class="minValInput" data-slot="${s}" value="${slotState[s].minVal}" step="${range.isPercent ? '0.1' : '1'}" style="width:64px"> <span class="odd-nick">이상 (${entry.range})</span>`;
-  cell.querySelector('.minValInput').addEventListener('input', e => {
-    slotState[s].minVal = parseFloat(e.target.value) || 0;
-    calc();
+  cell.innerHTML = slotState[s].targets.map(t => {
+    const entry = list[t.idx];
+    if (!entry) return '';
+    const range = parseRange(entry.range);
+    const hasRange = range.max > range.min;
+    return `<div style="margin-bottom:3px;white-space:nowrap">${entry.opt} (${entry.range})${hasRange
+      ? ` <input type="number" class="minValInput" data-slot="${s}" data-idx="${t.idx}" value="${t.minVal}" step="${range.isPercent ? '0.1' : '1'}" style="width:56px"> 이상`
+      : ''}</div>`;
+  }).join('');
+  cell.querySelectorAll('.minValInput').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const idx = parseInt(inp.dataset.idx, 10);
+      const t = slotState[s].targets.find(tt => tt.idx === idx);
+      if (t) t.minVal = parseFloat(e.target.value) || 0;
+      calc();
+    });
   });
 }
 
@@ -114,18 +131,21 @@ function rebuildSlotOptions() {
   SLOTS.forEach(s => {
     const list = optionsForSlot(race, s);
     const groups = {};
-    list.forEach((e, i) => { e.idx = i; (groups[e.grade] = groups[e.grade] || []).push(e); });
+    list.forEach(e => { (groups[e.grade] = groups[e.grade] || []).push(e); });
     const sel = slotTableEl.querySelector(`.targetSel[data-slot="${s}"]`);
     if (!sel) return;
     sel.innerHTML = GRADES.filter(g => groups[g] && groups[g].length).map(g =>
       `<optgroup label="${g}">${groups[g].map(e => `<option value="${e.idx}">${e.opt} (${e.range})</option>`).join('')}</optgroup>`
     ).join('');
-    const wanted = slotState[s].idx;
-    sel.value = wanted < list.length ? String(wanted) : '0';
-    slotState[s].idx = parseInt(sel.value, 10) || 0;
-    const range = parseRange(list[slotState[s].idx].range);
-    slotState[s].minVal = range.min;
-    updateMinValUI(s);
+    // 종족/레벨이 바뀌며 사라진 옵션은 목표에서 제외, 하나도 안 남으면 기본값으로.
+    const validIdxs = new Set(list.map(e => e.idx));
+    slotState[s].targets = slotState[s].targets.filter(t => validIdxs.has(t.idx));
+    if (slotState[s].targets.length === 0) {
+      slotState[s].targets = [{ idx: 0, minVal: parseRange(list[0].range).min }];
+    }
+    const selectedIdxs = new Set(slotState[s].targets.map(t => t.idx));
+    Array.from(sel.options).forEach(opt => { opt.selected = selectedIdxs.has(parseInt(opt.value, 10)); });
+    renderTargetDetail(s);
   });
 }
 
@@ -133,14 +153,14 @@ function renderSlotTable() {
   slotTableEl.innerHTML = `
     <table class="odd-table">
       <thead><tr>
-        <th>우선순위</th><th>슬롯</th><th>목표 옵션</th><th>허용 최소값</th><th>1회 적중 확률</th><th>잠금</th>
+        <th>우선순위</th><th>슬롯</th><th>목표 옵션 (여러 개 가능)</th><th>선택된 목표 · 허용 최소값</th><th>1회 적중 확률</th><th>잠금</th>
       </tr></thead>
       <tbody>${SLOTS.map(s => `
         <tr class="${slotState[s].locked ? 'target-row' : ''}">
           <td><select class="phaseSel" data-slot="${s}">${[1, 2, 3].map(p => `<option value="${p}" ${slotState[s].phase === p ? 'selected' : ''}>${PHASE_LABEL[p]}</option>`).join('')}</select></td>
           <td>${s}번</td>
-          <td><select class="targetSel" data-slot="${s}"></select></td>
-          <td id="rangeCell${s}"></td>
+          <td><select class="targetSel" data-slot="${s}" multiple size="5"></select></td>
+          <td id="detailCell${s}"></td>
           <td class="odd-eff" id="pRow${s}">—</td>
           <td style="text-align:center"><input type="checkbox" class="lockChk" data-slot="${s}" ${slotState[s].locked ? 'checked' : ''}></td>
         </tr>`).join('')}</tbody>
@@ -149,11 +169,16 @@ function renderSlotTable() {
   slotTableEl.querySelectorAll('.targetSel').forEach(sel => {
     sel.addEventListener('change', () => {
       const s = parseInt(sel.dataset.slot, 10);
-      slotState[s].idx = parseInt(sel.value, 10) || 0;
       const race = raceSel.value;
-      const range = parseRange(optionsForSlot(race, s)[slotState[s].idx].range);
-      slotState[s].minVal = range.min;
-      updateMinValUI(s);
+      const list = optionsForSlot(race, s);
+      const prevByIdx = {};
+      slotState[s].targets.forEach(t => { prevByIdx[t.idx] = t.minVal; });
+      const selectedIdxs = Array.from(sel.selectedOptions).map(o => parseInt(o.value, 10));
+      slotState[s].targets = selectedIdxs.map(idx => ({
+        idx,
+        minVal: prevByIdx[idx] != null ? prevByIdx[idx] : parseRange(list[idx].range).min,
+      }));
+      renderTargetDetail(s);
       calc();
     });
   });
@@ -268,11 +293,13 @@ function calc() {
 
   const allP = {};
   SLOTS.forEach(s => {
-    const entry = currentEntry(race, s);
-    const p = pOf(entry, level);
+    const p = slotProb(race, s, level);
     allP[s] = p;
     const cell = $('pRow' + s);
-    if (cell) cell.textContent = p > 0 ? (p * 100).toFixed(4) + '%' : '0% (미해금)';
+    if (cell) {
+      cell.textContent = slotState[s].targets.length === 0 ? '0% (목표 없음)'
+        : p > 0 ? (p * 100).toFixed(4) + '%' : '0% (미해금)';
+    }
   });
 
   let crystalTotal = 0, rerollTotal = 0, crystalLeft = 0, rerollLeft = 0, lockedCountAll = 0;
