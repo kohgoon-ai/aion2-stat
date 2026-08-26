@@ -29,7 +29,10 @@ function slotCount() { return parseInt(countSel.value, 10); }
 
 function ensureSlotStateSize() {
   const n = slotCount();
-  while (slotState.length < n) slotState.push({ idx: 0, locked: false });
+  // 기본값을 전부 idx:0(첫 옵션)으로 두면 목표를 여러 개 걸어도 전부 같은 스탯을 노리는
+  // 꼴이 돼서(예: 2개 목표 = 같은 스탯 2개 필요, 기대 개수가 비정상적으로 커 보임) 헷갈리므로
+  // 슬롯마다 서로 다른 옵션이 기본으로 잡히도록 idx를 슬롯 순번으로 벌려준다.
+  while (slotState.length < n) slotState.push({ idx: slotState.length, locked: false });
   slotState.length = n;
 }
 
