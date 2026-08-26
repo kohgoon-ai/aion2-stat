@@ -34,7 +34,7 @@ const raceSel = $('race'), levelSel = $('level');
 const costTableEl = $('costTable'), slotTableEl = $('slotTable'), phaseTableEl = $('phaseTable');
 
 // 슬롯별 상태: 목표 옵션들(여러 개 중 하나라도 나오면 OK — [{idx, minVal}, ...]), 잠금 여부, 우선순위(1~3차).
-const slotState = SLOTS.reduce((acc, s) => { acc[s] = { targets: [{ idx: 0, minVal: 0 }], locked: false, phase: DEFAULT_PHASE[s] }; return acc; }, {});
+const slotState = SLOTS.reduce((acc, s) => { acc[s] = { targets: [{ idx: 0, minVal: null }], locked: false, phase: DEFAULT_PHASE[s] }; return acc; }, {});
 
 function optionsForSlot(race, slot) {
   const list = [];
@@ -140,6 +140,10 @@ function rebuildSlotOptions() {
     if (slotState[s].targets.length === 0) {
       slotState[s].targets = [{ idx: 0, minVal: parseRange(list[0].range).min }];
     }
+    // 아직 허용 최소값을 안 정한(null) 목표는 그 옵션 범위의 최솟값(=전체 범위 허용)으로 채워준다.
+    slotState[s].targets.forEach(t => {
+      if (t.minVal == null) t.minVal = parseRange(list[t.idx].range).min;
+    });
     const selectedIdxs = new Set(slotState[s].targets.map(t => t.idx));
     box.innerHTML = GRADES.filter(g => groups[g] && groups[g].length).map(g => `
       <div class="cl-grade">${g}</div>
