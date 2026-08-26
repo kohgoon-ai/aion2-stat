@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이온2 마석·영석 계산기</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <a href="index.html">스탯 계산기</a>
+    <a href="checklist.html">숙제 체크리스트</a>
+    <a href="odd-calc.html">오드→키나 계산기</a>
+    <a href="pet-calc.html">펫 이해도 계산기</a>
+    <a href="manastone-calc.html" class="on">마석·영석 계산기</a>
+  </nav>
+
+  <header class="head">
+    <h1>아이온2 <span>마석·영석 계산기</span></h1>
+    <p class="sub">장비 등급만큼의 슬롯에 원하는 스탯을 각각 목표로 걸어두면, 하나씩 나올 때마다 체크로 잠그면서 나머지 슬롯을 계속 만들어 채우는 과정을 기대값으로 계산합니다.</p>
+  </header>
+
+  <div class="disclaimer">
+    ⚠ 마석/영석 등급(기본·상급·최상급)별·스탯별 확률은 <b>NC 공식 확률정보</b>(probability.plaync.com/aion2, "마석/영석 확률" 카테고리, 2026-08-18(화) 20:06:35 갱신 스냅샷 기준)의 표 원문을 그대로 옮긴 것입니다. 원문에 "(각인)" 표기로 중복 게재된 항목은 수치가 완전히 동일해 하나로 합쳤습니다.<br>
+    <span class="disclaimer-note">* 장비 등급별 슬롯 개수 중 <b>유일 4칸·영웅 5칸</b>은 인벤 공략글에서 직접 확인한 수치이고, 일반 1·희귀 2·전승 3칸은 다른 글을 교차 참고한 것이라 상대적으로 신뢰도가 낮습니다 — 실제와 다르면 아래에서 슬롯 개수를 임의로 조정할 근거는 없으니 등급 선택으로만 대응해주세요.</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>조건 입력</h2>
+
+      <div class="field"><label>마석/영석 종류</label>
+        <select id="itemName">
+          <optgroup label="마석">
+            <option value="하급 마석">하급 마석</option>
+            <option value="중급 마석">중급 마석</option>
+            <option value="상급 마석" selected>상급 마석</option>
+          </optgroup>
+          <optgroup label="심연의 마석">
+            <option value="하급 심연의 마석">하급 심연의 마석</option>
+            <option value="중급 심연의 마석">중급 심연의 마석</option>
+            <option value="상급 심연의 마석">상급 심연의 마석</option>
+          </optgroup>
+          <optgroup label="영석">
+            <option value="하급 영석">하급 영석</option>
+            <option value="중급 영석">중급 영석</option>
+            <option value="상급 영석">상급 영석</option>
+          </optgroup>
+          <optgroup label="심연의 영석">
+            <option value="하급 심연의 영석">하급 심연의 영석</option>
+            <option value="중급 심연의 영석">중급 심연의 영석</option>
+            <option value="상급 심연의 영석">상급 심연의 영석</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="field"><label>장비 등급 (슬롯 개수)</label>
+        <select id="gearGrade">
+          <option value="1">일반 (1칸)</option>
+          <option value="2">희귀 (2칸)</option>
+          <option value="3">전승 (3칸)</option>
+          <option value="4" selected>유일 (4칸)</option>
+          <option value="5">영웅 (5칸)</option>
+        </select>
+      </div>
+
+      <div class="sect">계산 근거</div>
+      <div class="note">
+        ※ 마석/영석 하나를 만들 때마다 ① 기본/상급/최상급 중 등급이 정해지고, ② 그 등급 안에서 스탯이 정해집니다 — 한 번에 하나씩, 슬롯끼리 서로 영향을 주지 않는 독립적인 뽑기입니다(펫 이해도처럼 여러 슬롯을 한 번에 같이 돌리는 방식이 아닙니다).<br>
+        ※ 한 번 만들 때 목표 확률 = P(등급) × P(스탯|등급). 슬롯마다 다른 목표를 걸어두면, "그 스탯이 나왔을 때 아직 못 채운 슬롯 중 어디에 쓸지"까지 반영해 9개(최대 5개) 슬롯을 전부 채울 때까지의 기대 개수를 정확히 계산합니다(근사 없는 상태 기반 기대값).<br>
+        ※ 두 슬롯에 같은 목표를 걸어두면, 그 스탯이 한 번 나왔을 때 둘 중 하나만 채워진다는 점까지 계산에 반영됩니다.<br>
+        ※ "보유 개수로 완성 확률"은 실제로 들어가는 개수가 매번 운에 따라 달라지는 걸 반영해야 해서, 같은 조건으로 5,000번 가상으로 만들어보는 시뮬레이션으로 계산합니다 — 표본 기반 근사치입니다.
+      </div>
+    </div>
+
+    <div class="card2">
+      <h2 class="r">계산 결과</h2>
+      <p class="hint">※ 아래 "기대 개수"는 확률이 아니라, 슬롯을 전부 채울 때까지 <b>평균적으로 몇 개 만들어야 하는가</b>를 계산한 기대값입니다.</p>
+      <div class="pockets">
+        <div class="pk"><div class="n">잠금 진행</div><div class="v" id="pProgress">—</div></div>
+        <div class="pk"><div class="n">총 기대 개수 (처음부터)</div><div class="v" id="pTotal">—</div></div>
+        <div class="pk"><div class="n">잔여 기대 개수</div><div class="v" id="pLeft">—</div></div>
+      </div>
+      <div class="pockets one">
+        <div class="pk wide"><div class="n">잔여 기대 개수 (지금부터 · 핵심 지표)</div><div class="v big" id="pLeftBig">—</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sect" style="margin-top:0">보유 개수로 완성 확률 <span style="font-weight:400;letter-spacing:0">— 5,000회 시뮬레이션</span></div>
+      <div class="field"><label>보유 마석/영석 (개)</label><input type="number" id="budget" value="50" min="0" step="1"></div>
+      <div class="pockets">
+        <div class="pk"><div class="n">이 개수로 잔여 목표 완성 확률</div><div class="v" id="pBudgetLeft">—</div></div>
+        <div class="pk"><div class="n">이 개수로 전체 목표 완성 확률</div><div class="v" id="pBudgetTotal">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h2>슬롯별 목표 설정 &amp; 잠금 진행</h2>
+    <div id="slotTable" style="overflow-x:auto"></div>
+    <div class="note">※ "1회 적중 확률"은 마석/영석 하나를 만들 때 그 목표 스탯이 나올 확률입니다(등급 확률 × 스탯 확률). 잠금을 체크하면 그 슬롯은 이후 계산에서 빠집니다.</div>
+  </div>
+
+  <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
+</div>
+<script src="manastone-calc.js"></script>
+</body>
+</html>
