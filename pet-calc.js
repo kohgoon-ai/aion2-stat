@@ -132,11 +132,8 @@ function rebuildSlotOptions() {
     const list = optionsForSlot(race, s);
     const groups = {};
     list.forEach(e => { (groups[e.grade] = groups[e.grade] || []).push(e); });
-    const sel = slotTableEl.querySelector(`.targetSel[data-slot="${s}"]`);
-    if (!sel) return;
-    sel.innerHTML = GRADES.filter(g => groups[g] && groups[g].length).map(g =>
-      `<optgroup label="${g}">${groups[g].map(e => `<option value="${e.idx}">${e.opt} (${e.range})</option>`).join('')}</optgroup>`
-    ).join('');
+    const box = slotTableEl.querySelector(`.targetCheckList[data-slot="${s}"]`);
+    if (!box) return;
     // 종족/레벨이 바뀌며 사라진 옵션은 목표에서 제외, 하나도 안 남으면 기본값으로.
     const validIdxs = new Set(list.map(e => e.idx));
     slotState[s].targets = slotState[s].targets.filter(t => validIdxs.has(t.idx));
@@ -144,7 +141,11 @@ function rebuildSlotOptions() {
       slotState[s].targets = [{ idx: 0, minVal: parseRange(list[0].range).min }];
     }
     const selectedIdxs = new Set(slotState[s].targets.map(t => t.idx));
-    Array.from(sel.options).forEach(opt => { opt.selected = selectedIdxs.has(parseInt(opt.value, 10)); });
+    box.innerHTML = GRADES.filter(g => groups[g] && groups[g].length).map(g => `
+      <div class="cl-grade">${g}</div>
+      ${groups[g].map(e => `
+        <label class="cl-item"><input type="checkbox" class="targetChk" value="${e.idx}" ${selectedIdxs.has(e.idx) ? 'checked' : ''}> ${e.opt} (${e.range})</label>`).join('')}
+    `).join('');
     renderTargetDetail(s);
   });
 }
@@ -153,35 +154,19 @@ function renderSlotTable() {
   slotTableEl.innerHTML = `
     <table class="odd-table">
       <thead><tr>
-        <th>우선순위</th><th>슬롯</th><th>목표 옵션 (여러 개 가능)</th><th>선택된 목표 · 허용 최소값</th><th>1회 적중 확률</th><th>잠금</th>
+        <th>우선순위</th><th>슬롯</th><th>목표 옵션 (체크박스로 여러 개 가능)</th><th>선택된 목표 · 허용 최소값</th><th>1회 적중 확률</th><th>잠금</th>
       </tr></thead>
       <tbody>${SLOTS.map(s => `
         <tr class="${slotState[s].locked ? 'target-row' : ''}">
           <td><select class="phaseSel" data-slot="${s}">${[1, 2, 3].map(p => `<option value="${p}" ${slotState[s].phase === p ? 'selected' : ''}>${PHASE_LABEL[p]}</option>`).join('')}</select></td>
           <td>${s}번</td>
-          <td><select class="targetSel" data-slot="${s}" multiple size="5"></select></td>
+          <td><div class="targetCheckList" data-slot="${s}"></div></td>
           <td id="detailCell${s}"></td>
           <td class="odd-eff" id="pRow${s}">—</td>
           <td style="text-align:center"><input type="checkbox" class="lockChk" data-slot="${s}" ${slotState[s].locked ? 'checked' : ''}></td>
         </tr>`).join('')}</tbody>
     </table>`;
   rebuildSlotOptions();
-  slotTableEl.querySelectorAll('.targetSel').forEach(sel => {
-    sel.addEventListener('change', () => {
-      const s = parseInt(sel.dataset.slot, 10);
-      const race = raceSel.value;
-      const list = optionsForSlot(race, s);
-      const prevByIdx = {};
-      slotState[s].targets.forEach(t => { prevByIdx[t.idx] = t.minVal; });
-      const selectedIdxs = Array.from(sel.selectedOptions).map(o => parseInt(o.value, 10));
-      slotState[s].targets = selectedIdxs.map(idx => ({
-        idx,
-        minVal: prevByIdx[idx] != null ? prevByIdx[idx] : parseRange(list[idx].range).min,
-      }));
-      renderTargetDetail(s);
-      calc();
-    });
-  });
   slotTableEl.querySelectorAll('.phaseSel').forEach(sel => {
     sel.addEventListener('change', () => {
       const s = parseInt(sel.dataset.slot, 10);
@@ -366,6 +351,25 @@ function calc() {
 raceSel.addEventListener('change', () => { rebuildSlotOptions(); calc(); });
 levelSel.addEventListener('change', calc);
 budgetEl.addEventListener('input', updateBudgetProb);
+
+// 체크박스는 renderSlotTable/rebuildSlotOptions가 innerHTML을 통째로 새로 그려서
+// 매번 다시 바인딩하지 않도록, 안 바뀌는 slotTableEl에 위임 이벤트로 한 번만 건다.
+slotTableEl.addEventListener('change', e => {
+  if (!e.target.classList.contains('targetChk')) return;
+  const box = e.target.closest('.targetCheckList');
+  const s = parseInt(box.dataset.slot, 10);
+  const race = raceSel.value;
+  const list = optionsForSlot(race, s);
+  const prevByIdx = {};
+  slotState[s].targets.forEach(t => { prevByIdx[t.idx] = t.minVal; });
+  const selectedIdxs = Array.from(box.querySelectorAll('.targetChk:checked')).map(el => parseInt(el.value, 10));
+  slotState[s].targets = selectedIdxs.map(idx => ({
+    idx,
+    minVal: prevByIdx[idx] != null ? prevByIdx[idx] : parseRange(list[idx].range).min,
+  }));
+  renderTargetDetail(s);
+  calc();
+});
 
 renderCostTable();
 costTableEl.addEventListener('input', calc);
