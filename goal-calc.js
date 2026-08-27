@@ -47,28 +47,17 @@ function computeGoalPath(statKey) {
   return { petRows, petByRace, petMaxTotal, stoneRows, spiritRows, noOptionRaces };
 }
 
-// 부위별로 이미 챙긴 마석/영석 수치를 참고용으로 수기 입력하는 선택 섹션 — 스탯을 바꾸면 초기화된다.
+// 부위마다 마석/영석 칸이 여러 개인데, 어떤 칸에 뭐가 들어있는지 전부 고르게 하면 입력이
+// 너무 번거롭다는 피드백에 따라 더 간단하게: 등급(칸 수 결정) → 이 부위에 목표 스탯이
+// 몇 칸 들어있는지 개수만 고르면 → 그 개수만큼 수치 입력칸이 뜨는 방식으로 바꿨다.
 let goalManaStatKey = null;
-let goalManaSlots = {}; // "part__i" -> manaOptionsForPart(part) 전체 옵션 목록의 인덱스(-1 = 선택 안함) — 스탯을 바꾸면 초기화된다.
 let goalManaGrade = {}; // part -> '유일'|'영웅' — 부위 등급은 목표 스탯과 무관하니 스탯을 바꿔도 유지한다.
+let goalManaCount = {}; // part -> 이 부위에서 목표 스탯이 들어있는 칸 수 — 스탯을 바꾸면 초기화된다.
+let goalManaValues = {}; // part -> [칸별 수치, ...] (길이 = goalManaCount[part])
 
-function manaOptionsForPart(part) {
-  const stoneType = stoneTypeFor(part);
-  return MANA_OPTIONS.filter(o => o.item.indexOf(stoneType) >= 0);
-}
-function goalManaSlotKey(part, i) { return `${part}__${i}`; }
 function goalManaSlotCount(part) { return GRADE_MAX[goalManaGrade[part] || '유일']; }
-function goalManaPartContribution(part, statKey) {
-  const opts = manaOptionsForPart(part);
-  let sum = 0;
-  const n = goalManaSlotCount(part);
-  for (let i = 0; i < n; i++) {
-    const idx = goalManaSlots[goalManaSlotKey(part, i)];
-    if (idx == null || idx < 0) continue;
-    const o = opts[idx];
-    if (o && o.statKey === statKey) sum += o.val;
-  }
-  return sum;
+function goalManaPartContribution(part) {
+  return (goalManaValues[part] || []).reduce((a, v) => a + (v || 0), 0);
 }
 
 // 슬롯마다 지금 실제로 어떤 옵션이 들어있는지(꼭 목표 스탯이 아닐 수도 있다) — 스탯을 바꾸면 초기화된다.
@@ -111,7 +100,7 @@ function renderGoalResult() {
   const manualValue = hasManual ? (parseFloat(rawManual) || 0) : 0;
   const box = $('goalResult');
   if (!statKey) { box.innerHTML = ''; return; }
-  if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaSlots = {}; }
+  if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaCount = {}; goalManaValues = {}; }
   if (goalPetStatKey !== statKey) { goalPetStatKey = statKey; goalPetEntries = {}; }
   const sd = STAT_BY_KEY[statKey];
   const unit = sd.pct ? '%' : '';
@@ -125,7 +114,7 @@ function renderGoalResult() {
     const type = stoneTypeFor(part);
     return (type === '마석' && stoneRows.length) || (type === '영석' && spiritRows.length);
   });
-  const manaEnteredSum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part, statKey), 0);
+  const manaEnteredSum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part), 0);
   const autoTotal = petActualTotal + engraveVal + manaEnteredSum;
   const currentTotal = hasManual ? manualValue : autoTotal;
   const remain = target - currentTotal;
@@ -362,63 +351,38 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
   if (!box) return;
   const bestFor = part => (stoneTypeFor(part) === '마석' ? stoneRows[0] : spiritRows[0]);
 
-  const updateSlotHint = (part, i) => {
-    const key = goalManaSlotKey(part, i);
-    const hintEl = $('goalManaSlotHint_' + key);
-    if (!hintEl) return;
-    const opts = manaOptionsForPart(part);
-    const idx = goalManaSlots[key];
-    const o = idx != null && idx >= 0 ? opts[idx] : null;
-    const best = bestFor(part);
-    if (o && o.statKey === statKey) {
-      hintEl.textContent = `✓ ${sd.label} 기여 중`;
-      hintEl.style.color = 'var(--gold)';
-    } else if (best) {
-      hintEl.textContent = `다른 옵션 — ${sd.label}(으)로 바꾸면 ${best.item} ${best.stage} 기준 최대 ${best.val.toFixed(dp)}${unit}`;
-      hintEl.style.color = 'var(--muted)';
-    } else {
-      hintEl.textContent = '';
-    }
-  };
-
   const updatePartTotal = part => {
     const el = $('goalManaPartSubtotal_' + part);
-    if (el) el.textContent = `${goalManaPartContribution(part, statKey).toFixed(dp)}${unit}`;
+    if (el) el.textContent = `${goalManaPartContribution(part).toFixed(dp)}${unit}`;
   };
 
   const updatePriority = remain => {
     const el = $('goalManaPriority');
     if (!el) return;
-    if (remain <= 0) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">이미 목표를 채웠습니다 — 더 스왑할 필요 없습니다.</div>`; return; }
-    // 몇 칸까지 스왑하면 되는지 정직한 개수로 답한다(펫 슬롯 제안과 같은 방식).
+    if (remain <= 0) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">이미 목표를 채웠습니다 — 더 채울 필요 없습니다.</div>`; return; }
+    // 아직 목표 스탯을 넣지 않은 빈 칸 수 = 부위 전체 칸 수 - 이미 목표 스탯 넣은 칸 수.
     const candidates = [];
     relevantParts.forEach(part => {
       const best = bestFor(part);
       if (!best) return;
-      const opts = manaOptionsForPart(part);
-      const n = goalManaSlotCount(part);
-      for (let i = 0; i < n; i++) {
-        const idx = goalManaSlots[goalManaSlotKey(part, i)];
-        const o = idx != null && idx >= 0 ? opts[idx] : null;
-        if (o && o.statKey === statKey) continue; // 이미 목표 스탯인 칸은 후보 아님
-        candidates.push({ part, gain: best.val });
-      }
+      const emptySlots = goalManaSlotCount(part) - (goalManaCount[part] || 0);
+      for (let i = 0; i < emptySlots; i++) candidates.push({ part, gain: best.val });
     });
     candidates.sort((a, b) => b.gain - a.gain);
-    if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">스왑할 수 있는 칸이 더 없습니다 — 펫 이해도나 영혼각인으로 채워야 합니다.</div>`; return; }
+    if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">더 채울 수 있는 빈 칸이 없습니다 — 펫 이해도나 영혼각인으로 채워야 합니다.</div>`; return; }
     let acc = 0, count = 0;
     for (const c of candidates) { if (acc >= remain) break; acc += c.gain; count++; }
     const totalAvailable = candidates.length;
     if (acc < remain) {
       const stillShort = remain - acc;
-      el.innerHTML = `<div class="note" style="margin-top:8px">비어있거나 다른 옵션인 칸을 <b>전부(${totalAvailable}칸)</b> ${sd.label}(으)로 바꿔도 최대 <b>${acc.toFixed(dp)}${unit}</b>까지고, 부족분 <b>${remain.toFixed(dp)}${unit}</b> 중 <b>${stillShort.toFixed(dp)}${unit}</b>는 마석/영석 스왑만으로는 못 채웁니다 — 펫 이해도나 영혼각인으로 채우세요.</div>`;
+      el.innerHTML = `<div class="note" style="margin-top:8px">비어있는 칸을 <b>전부(${totalAvailable}칸)</b> ${sd.label}(으)로 채워도 최대 <b>${acc.toFixed(dp)}${unit}</b>까지고, 부족분 <b>${remain.toFixed(dp)}${unit}</b> 중 <b>${stillShort.toFixed(dp)}${unit}</b>는 마석/영석만으로는 못 채웁니다 — 펫 이해도나 영혼각인으로 채우세요.</div>`;
     } else {
-      el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}는 값이 큰 칸부터 최소 <b>${count}칸</b>(전체 후보 ${totalAvailable}칸 중)을 ${sd.label}(으)로 바꾸면 채울 수 있습니다 — 어느 칸인지는 아래 "다른 옵션 — 최대 N" 안내를 참고해 값이 큰 순서로 고르세요.</div>`;
+      el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}는 빈 칸 중 최소 <b>${count}칸</b>(전체 빈 칸 ${totalAvailable}칸 중)을 최고 등급 ${sd.label}(으)로 채우면 됩니다.</div>`;
     }
   };
 
   const updateSum = () => {
-    const sum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part, statKey), 0);
+    const sum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part), 0);
     // 펫 이해도 쪽 입력은 별도 그리드(renderGoalPetGrid)가 실시간으로 갱신하므로,
     // 여기서도 화면에 지금 떠 있는 펫 총합을 그대로 읽어서 합친다(최신 값 보장).
     const livePetTotal = parseFloat(($('goalPetTotalDisplay') && $('goalPetTotalDisplay').textContent) || '0') || petActualTotal;
@@ -441,57 +405,62 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
     updatePriority(remain);
   };
 
-  const renderPartSlots = part => {
-    const container = $('goalManaSlotsFor_' + part);
+  // count(이 부위에 목표 스탯이 몇 칸 들어있는지)만큼 수치 입력칸을 그린다.
+  const renderValueInputs = part => {
+    const container = $('goalManaValuesFor_' + part);
     if (!container) return;
-    const n = goalManaSlotCount(part);
-    const opts = manaOptionsForPart(part);
-    const byCat = {};
-    opts.forEach((o, i) => { const sdd = STAT_BY_KEY[o.statKey]; if (sdd) { (byCat[sdd.cat] = byCat[sdd.cat] || []).push({ ...o, i }); } });
-    const optHtml = o => `<option value="${o.i}">${o.item} ${o.stage} · ${o.stat} (${o.val})</option>`;
-    const selectOptionsHtml = `<option value="-1">— 선택 안함 —</option>` +
-      CATEGORIES.filter(c => byCat[c.key] && byCat[c.key].length).map(c => `<optgroup label="${c.label}">${byCat[c.key].map(optHtml).join('')}</optgroup>`).join('');
-    container.innerHTML = Array.from({ length: n }, (_, i) => {
-      const key = goalManaSlotKey(part, i);
-      return `
-      <div class="cost-cell" style="min-width:150px">
+    const count = goalManaCount[part] || 0;
+    const values = goalManaValues[part] || (goalManaValues[part] = []);
+    values.length = count; // 칸 수가 줄면 뒤쪽 값은 버리고, 늘면 undefined로 채워진다.
+    if (!count) { container.innerHTML = `<div class="odd-nick">이 부위에 ${sd.label}이(가) 없다면 0칸으로 두세요.</div>`; return; }
+    container.innerHTML = Array.from({ length: count }, (_, i) => `
+      <div class="cost-cell" style="min-width:110px">
         <label>칸 ${i + 1}</label>
-        <select class="goalManaSlotSel" data-key="${key}">${selectOptionsHtml}</select>
-        <div id="goalManaSlotHint_${key}" class="odd-nick" style="margin-top:3px;font-size:11px"></div>
-      </div>`;
-    }).join('');
-    for (let i = 0; i < n; i++) {
-      const key = goalManaSlotKey(part, i);
-      const sel = document.querySelector(`.goalManaSlotSel[data-key="${key}"]`);
-      sel.value = String(goalManaSlots[key] != null ? goalManaSlots[key] : -1);
-      sel.addEventListener('change', () => {
-        goalManaSlots[key] = parseInt(sel.value, 10);
-        updateSlotHint(part, i);
+        <input type="number" class="goalManaValInput" data-part="${part}" data-i="${i}" value="${values[i] || 0}" step="${dp === 2 ? '0.1' : '1'}">
+      </div>`).join('');
+    for (let i = 0; i < count; i++) {
+      const inp = document.querySelector(`.goalManaValInput[data-part="${part}"][data-i="${i}"]`);
+      inp.addEventListener('input', () => {
+        values[i] = parseFloat(inp.value) || 0;
         updatePartTotal(part);
         updateSum();
       });
-      updateSlotHint(part, i);
     }
+  };
+
+  const renderCountSel = part => {
+    const el = $('goalManaCountSel_' + part);
+    if (!el) return;
+    const max = goalManaSlotCount(part);
+    const cur = Math.min(goalManaCount[part] || 0, max);
+    el.innerHTML = Array.from({ length: max + 1 }, (_, n) => `<option value="${n}" ${n === cur ? 'selected' : ''}>${n}칸</option>`).join('');
   };
 
   if (!relevantParts.length) { box.innerHTML = `<div class="odd-nick">이 스탯은 마석/영석 옵션이 없어서 입력할 부위가 없습니다.</div>`; return; }
 
   box.innerHTML = relevantParts.map(part => {
     const grade = goalManaGrade[part] || '유일';
-    const partSum = goalManaPartContribution(part, statKey);
+    const best = bestFor(part);
+    const partSum = goalManaPartContribution(part);
     return `
     <details class="card" style="margin-top:8px;padding:10px 12px" open>
       <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-weight:700">${part} <span style="font-weight:400;color:var(--muted);font-size:12px">(${stoneTypeFor(part)})</span></span>
         <span style="font-size:13px">현재 <b id="goalManaPartSubtotal_${part}" style="color:var(--gold)">${partSum.toFixed(dp)}${unit}</b></span>
       </summary>
-      <div class="field" style="margin-top:8px"><label>등급</label>
-        <select class="goalManaGradeSel" data-part="${part}">
-          <option value="유일" ${grade === '유일' ? 'selected' : ''}>유일 (4칸)</option>
-          <option value="영웅" ${grade === '영웅' ? 'selected' : ''}>영웅 (5칸)</option>
-        </select>
+      ${best ? `<div class="odd-nick" style="margin-top:4px">참고 — 이 부위 ${stoneTypeFor(part)} 최고값: ${best.item} ${best.stage} (${best.val.toFixed(dp)}${unit})</div>` : ''}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <div class="field" style="margin:0"><label>등급</label>
+          <select class="goalManaGradeSel" data-part="${part}">
+            <option value="유일" ${grade === '유일' ? 'selected' : ''}>유일 (4칸)</option>
+            <option value="영웅" ${grade === '영웅' ? 'selected' : ''}>영웅 (5칸)</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0"><label>${sd.label} 몇 칸?</label>
+          <select id="goalManaCountSel_${part}" data-part="${part}"></select>
+        </div>
       </div>
-      <div class="cost-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));margin-top:8px" id="goalManaSlotsFor_${part}"></div>
+      <div class="cost-grid" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));margin-top:8px" id="goalManaValuesFor_${part}"></div>
     </details>`;
   }).join('') + `<div id="goalManaPriority"></div>`;
 
@@ -499,16 +468,20 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
     const gradeSel = document.querySelector(`.goalManaGradeSel[data-part="${part}"]`);
     gradeSel.addEventListener('change', () => {
       goalManaGrade[part] = gradeSel.value;
-      // 등급이 줄어들면 칸 밖으로 밀려난 슬롯의 선택은 정리한다.
-      const n = goalManaSlotCount(part);
-      Object.keys(goalManaSlots).forEach(k => {
-        if (k.indexOf(part + '__') === 0 && parseInt(k.slice(part.length + 2), 10) >= n) delete goalManaSlots[k];
-      });
-      renderPartSlots(part);
+      renderCountSel(part);
+      renderValueInputs(part);
       updatePartTotal(part);
       updateSum();
     });
-    renderPartSlots(part);
+    const countSel = $('goalManaCountSel_' + part);
+    countSel.addEventListener('change', () => {
+      goalManaCount[part] = parseInt(countSel.value, 10);
+      renderValueInputs(part);
+      updatePartTotal(part);
+      updateSum();
+    });
+    renderCountSel(part);
+    renderValueInputs(part);
   });
 
   updateSum();
