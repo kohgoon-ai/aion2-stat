@@ -145,7 +145,9 @@ function parseRange(rangeStr) {
 }
 
 // ---------- 상태 (PVE/PVP 탭 전환과 무관하게 공유 — 같은 장비/펫 세팅을 다른 관점으로 볼 뿐) ----------
+// 펫 이해도는 종족 펫(지성/야성/자연/변형 중 하나) + 특수 펫을 동시에 데리고 다녀서 둘 다 합산된다.
 const petState = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
+const petStateSpecial = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
 const gearState = EQUIP_SLOTS.reduce((acc, part) => {
   acc[part] = { grade: '유일', manaTargets: [], engrave: {} }; // engrave: { [statKey]: value }
   return acc;
@@ -166,6 +168,7 @@ function setMode(mode) {
   activeMode = mode;
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.id === 'tab-' + mode ? 'true' : 'false'));
   renderPetTable();
+  renderPetTableSpecial();
   renderGearParts();
   renderGoalFinder();
   calc();
@@ -188,6 +191,7 @@ function renderFocusPicker() {
     chk.addEventListener('change', () => {
       if (chk.checked) focusStats.add(chk.value); else focusStats.delete(chk.value);
       renderPetTable();
+      renderPetTableSpecial();
       renderGearParts();
       renderGoalFinder();
       calc();
@@ -197,6 +201,7 @@ function renderFocusPicker() {
     focusStats.clear();
     renderFocusPicker();
     renderPetTable();
+    renderPetTableSpecial();
     renderGearParts();
     renderGoalFinder();
     calc();
@@ -204,25 +209,22 @@ function renderFocusPicker() {
 }
 
 // ---------- 펫 이해도 렌더 ----------
-function renderPetTable() {
-  const race = $('petRace').value;
-  $('petTable').innerHTML = `
+function renderPetSection(containerId, race, state, selClass, cellPrefix) {
+  $(containerId).innerHTML = `
     <table class="odd-table">
       <thead><tr><th>슬롯</th><th>챙길 스탯 옵션</th><th>수치</th></tr></thead>
       <tbody>${PET_SLOTS.map(s => `
         <tr>
           <td>${s}번</td>
-          <td><select class="petSel" data-slot="${s}"></select></td>
-          <td id="petValCell${s}"></td>
+          <td><select class="${selClass}" data-slot="${s}"></select></td>
+          <td id="${cellPrefix}${s}"></td>
         </tr>`).join('')}</tbody>
     </table>`;
   const shown = new Set(visibleStats().map(sd => sd.key));
   PET_SLOTS.forEach(s => {
     const matches = petMatchesForSlot(race, s);
-    const prevIdx = petState[s].idx;
-    const prevMatch = prevIdx >= 0 ? matches.find(m => m.statKey && m.stat === (document.querySelector(`.petSel[data-slot="${s}"]`)._prevStat || '')) : null;
-    petState[s].idx = -1;
-    const sel = document.querySelector(`.petSel[data-slot="${s}"]`);
+    state[s].idx = -1;
+    const sel = document.querySelector(`.${selClass}[data-slot="${s}"]`);
     const tagged = matches.map((m, i) => ({ ...m, i }));
     const relevant = tagged.filter(m => m.statKey && shown.has(m.statKey));
     const other = tagged.filter(m => !(m.statKey && shown.has(m.statKey)));
@@ -234,31 +236,37 @@ function renderPetTable() {
       (other.length ? `<optgroup label="기타 옵션 (요약 미포함)">${other.map(optHtml).join('')}</optgroup>` : '');
     sel._matches = matches;
     sel.addEventListener('change', () => {
-      petState[s].idx = parseInt(sel.value, 10);
-      renderPetValueCell(s);
+      state[s].idx = parseInt(sel.value, 10);
+      renderPetValueCell(s, state, selClass, cellPrefix);
       calc();
     });
-    renderPetValueCell(s);
+    renderPetValueCell(s, state, selClass, cellPrefix);
   });
 }
-function renderPetValueCell(s) {
-  const cell = $('petValCell' + s);
-  const sel = document.querySelector(`.petSel[data-slot="${s}"]`);
-  const idx = petState[s].idx;
+function renderPetValueCell(s, state, selClass, cellPrefix) {
+  const cell = $(cellPrefix + s);
+  const sel = document.querySelector(`.${selClass}[data-slot="${s}"]`);
+  const idx = state[s].idx;
   if (idx < 0 || !sel._matches[idx]) { cell.innerHTML = '—'; return; }
   const m = sel._matches[idx];
   const range = parseRange(m.range);
-  if (petState[s].value === 0 || petState[s].value < range.min || petState[s].value > range.max) {
-    petState[s].value = range.max;
+  if (state[s].value === 0 || state[s].value < range.min || state[s].value > range.max) {
+    state[s].value = range.max;
   }
-  cell.innerHTML = `<input type="number" class="petValInput" data-slot="${s}" value="${petState[s].value}" min="${range.min}" max="${range.max}" step="${range.isPercent ? '0.1' : '1'}" style="width:70px"> <span class="odd-nick">(${m.range})</span>`;
+  cell.innerHTML = `<input type="number" class="petValInput" data-slot="${s}" value="${state[s].value}" min="${range.min}" max="${range.max}" step="${range.isPercent ? '0.1' : '1'}" style="width:70px"> <span class="odd-nick">(${m.range})</span>`;
   cell.querySelector('.petValInput').addEventListener('input', e => {
     const range2 = parseRange(sel._matches[idx].range);
     let v = parseFloat(e.target.value) || 0;
     v = Math.max(range2.min, Math.min(range2.max, v));
-    petState[s].value = v;
+    state[s].value = v;
     calc();
   });
+}
+function renderPetTable() {
+  renderPetSection('petTable', $('petRace').value, petState, 'petSel', 'petValCell');
+}
+function renderPetTableSpecial() {
+  renderPetSection('petTableSpecial', '특수', petStateSpecial, 'petSelSp', 'petValCellSp');
 }
 
 // ---------- 장비 부위 렌더 ----------
@@ -409,26 +417,29 @@ const PET_AMPRES_SLOTS = new Set([3, 6, 9]);
 // ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
 function computeGoalPath(statKey) {
   const sd = STAT_BY_KEY[statKey];
-  const race = $('petRace').value;
+  const mainRace = $('petRace').value;
   const petRows = [];
   let petMaxTotal = 0;
-  PET_SLOTS.forEach(s => {
-    if (!sd.pct && PET_AMPRES_SLOTS.has(s)) return;
-    const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
-    if (!matches.length) return;
-    let best = null, bestMax = -Infinity;
-    matches.forEach(m => {
-      const r = parseRange(m.range);
-      if (r.max > bestMax) { bestMax = r.max; best = { grade: m.grade, range: m.range, max: r.max }; }
+  // 종족 펫(9슬롯) + 특수 펫(9슬롯)을 동시에 데리고 다녀서 둘 다 합산한다.
+  [mainRace, '특수'].forEach(race => {
+    PET_SLOTS.forEach(s => {
+      if (!sd.pct && PET_AMPRES_SLOTS.has(s)) return;
+      const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
+      if (!matches.length) return;
+      let best = null, bestMax = -Infinity;
+      matches.forEach(m => {
+        const r = parseRange(m.range);
+        if (r.max > bestMax) { bestMax = r.max; best = { grade: m.grade, range: m.range, max: r.max }; }
+      });
+      if (best) { petRows.push({ race, slot: s, grade: best.grade, range: best.range, max: best.max }); petMaxTotal += best.max; }
     });
-    if (best) { petRows.push({ slot: s, grade: best.grade, range: best.range, max: best.max }); petMaxTotal += best.max; }
   });
 
   const manaOpts = MANA_OPTIONS.filter(o => o.statKey === statKey);
   const stoneRows = manaOpts.filter(o => o.item.indexOf('마석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
   const spiritRows = manaOpts.filter(o => o.item.indexOf('영석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
 
-  return { race, petRows, petMaxTotal, stoneRows, spiritRows };
+  return { race: `${mainRace} + 특수`, petRows, petMaxTotal, stoneRows, spiritRows };
 }
 
 function renderGoalResult() {
@@ -461,8 +472,8 @@ function renderGoalResult() {
 
   const petTableHtml = petRows.length ? `
     <table class="odd-table">
-      <thead><tr><th>펫 슬롯</th><th>등급</th><th>범위</th></tr></thead>
-      <tbody>${petRows.map(r => `<tr><td>${r.slot}번</td><td>${r.grade}</td><td>${r.range}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>펫</th><th>슬롯</th><th>등급</th><th>범위</th></tr></thead>
+      <tbody>${petRows.map(r => `<tr><td>${r.race}</td><td>${r.slot}번</td><td>${r.grade}</td><td>${r.range}</td></tr>`).join('')}</tbody>
     </table>` : `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`;
   const manaTableHtml = rows => rows.length
     ? `<table class="odd-table"><thead><tr><th>아이템·단계</th><th>수치</th></tr></thead><tbody>${rows.map(o => `<tr><td>${o.item} ${o.stage}</td><td>${o.val.toFixed(dp)}${unit}</td></tr>`).join('')}</tbody></table>`
@@ -504,13 +515,15 @@ function calc() {
   shown.forEach(sd => { petTotals[sd.key] = 0; manaTotals[sd.key] = 0; engraveTotals[sd.key] = 0; });
   const shownKeys = new Set(shown.map(sd => sd.key));
 
-  PET_SLOTS.forEach(s => {
-    const idx = petState[s].idx;
-    if (idx < 0) return;
-    const sel = document.querySelector(`.petSel[data-slot="${s}"]`);
-    const m = sel && sel._matches && sel._matches[idx];
-    if (!m || !m.statKey || !shownKeys.has(m.statKey)) return;
-    petTotals[m.statKey] += petState[s].value;
+  [['petSel', petState], ['petSelSp', petStateSpecial]].forEach(([selClass, state]) => {
+    PET_SLOTS.forEach(s => {
+      const idx = state[s].idx;
+      if (idx < 0) return;
+      const sel = document.querySelector(`.${selClass}[data-slot="${s}"]`);
+      const m = sel && sel._matches && sel._matches[idx];
+      if (!m || !m.statKey || !shownKeys.has(m.statKey)) return;
+      petTotals[m.statKey] += state[s].value;
+    });
   });
 
   EQUIP_SLOTS.forEach(part => {
@@ -571,6 +584,7 @@ $('goalTarget').addEventListener('input', renderGoalResult);
 renderFocusPicker();
 renderTabs();
 renderPetTable();
+renderPetTableSpecial();
 renderGearParts();
 renderGoalFinder();
 calc();
