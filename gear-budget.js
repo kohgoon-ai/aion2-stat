@@ -36,13 +36,17 @@ const MANA_OPTIONS = []; // [{item, stage, stat, val, statKey, label}]
   MANA_OPTIONS.forEach((o, i) => { o.idx = i; });
 })();
 
-// ---------- 펫: 종족·슬롯별로 6개 스탯에 해당하는 (등급,스탯,범위) 목록 ----------
+// ---------- 펫: 종족·슬롯별 유일·영웅 등급 옵션 전부(스탯 종류 제한 없음) ----------
+// 유일/영웅만 보는 이유: 그 아래 등급은 실전에서 챙길 만한 수치가 아니라서 제외.
+// 스탯 종류를 6개로 좁히지 않고 전부 보여주되, 그중 6개 방어 스탯에 해당하는 것만
+// 아래 "총합 요약"에 statKey로 집계되고 나머지는 슬롯 표에서만 확인 가능하다.
+const PET_GRADES_SHOWN = ['유일', '영웅'];
 function petMatchesForSlot(race, slot) {
   const out = [];
-  GRADES.forEach(g => {
+  PET_GRADES_SHOWN.forEach(g => {
     (PET_OPTIONS[race][String(slot)][g] || []).forEach(([stat, range]) => {
       const sd = STAT_OF(stat);
-      if (sd) out.push({ grade: g, stat, range, statKey: sd.key });
+      out.push({ grade: g, stat, range, statKey: sd ? sd.key : null });
     });
   });
   return out;
@@ -81,8 +85,13 @@ function renderPetTable() {
     const matches = petMatchesForSlot(race, s);
     petState[s].idx = -1; // 종족 바뀌면 매칭 목록이 달라지므로 선택 초기화
     const sel = document.querySelector(`.petSel[data-slot="${s}"]`);
+    const tagged = matches.map((m, i) => ({ ...m, i }));
+    const main = tagged.filter(m => m.statKey);
+    const other = tagged.filter(m => !m.statKey);
+    const optHtml = m => `<option value="${m.i}">[${m.grade}] ${m.stat} (${m.range})</option>`;
     sel.innerHTML = `<option value="-1">— 선택 안함 —</option>` +
-      matches.map((m, i) => `<option value="${i}">[${m.grade}] ${m.stat} (${m.range})</option>`).join('');
+      (main.length ? `<optgroup label="방어 스탯 (요약에 포함)">${main.map(optHtml).join('')}</optgroup>` : '') +
+      (other.length ? `<optgroup label="기타 옵션 (요약 미포함)">${other.map(optHtml).join('')}</optgroup>` : '');
     sel._matches = matches;
     sel.addEventListener('change', () => {
       petState[s].idx = parseInt(sel.value, 10);
@@ -221,7 +230,7 @@ function calc() {
     if (idx < 0) return;
     const sel = document.querySelector(`.petSel[data-slot="${s}"]`);
     const m = sel && sel._matches && sel._matches[idx];
-    if (!m) return;
+    if (!m || !m.statKey) return; // 6개 방어 스탯에 해당 안 되는 옵션은 요약 합계에서 제외
     petTotals[m.statKey] += petState[s].value;
   });
 
