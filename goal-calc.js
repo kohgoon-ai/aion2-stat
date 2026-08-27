@@ -221,11 +221,23 @@ function renderGoalPetGrid(petRows, petByRace, statKey, sd, dp, unit, target, en
     const el = $('goalPetPriority');
     if (!el) return;
     if (remain <= 0) { el.innerHTML = ''; return; }
-    const candidates = petRows.filter(r => !goalPetRowIsOnTarget(r, statKey)).sort((a, b) => b.max - a.max);
+    // 한 종족 안에서 여러 슬롯을 전부 이 스탯 하나로 바꾸는 것도 비현실적이다 — 그 종족의
+    // 나머지 슬롯은 다른 스탯 몫이니, 종족당 스왑 후보는 제일 이득 큰 슬롯 1개만 인정한다.
+    const bestByRace = {};
+    petRows.filter(r => !goalPetRowIsOnTarget(r, statKey)).forEach(r => {
+      if (!bestByRace[r.race] || r.max > bestByRace[r.race].max) bestByRace[r.race] = r;
+    });
+    const candidates = Object.values(bestByRace).sort((a, b) => b.max - a.max);
     if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">스왑할 수 있는 슬롯이 더 없습니다 — 마석/영석이나 영혼각인으로 채워야 합니다.</div>`; return; }
     let acc = 0, picked = [];
     for (const c of candidates) { if (acc >= remain) break; picked.push(c); acc += c.max; }
-    el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}를 펫 슬롯 스왑으로 채우려면, 우선순위 순으로 <b>${picked.map(c => `${c.race} ${c.slot}번(최대 +${c.max.toFixed(dp)}${unit})`).join(' → ')}</b> 슬롯을 ${sd.label}(으)로 바꾸면 됩니다${acc < remain ? ' (그래도 부족하면 다른 슬롯도 추가로 필요)' : ''}.</div>`;
+    const picksHtml = picked.map(c => `${c.race} ${c.slot}번(최대 +${c.max.toFixed(dp)}${unit})`).join(' → ');
+    if (acc < remain) {
+      const stillShort = remain - acc;
+      el.innerHTML = `<div class="note" style="margin-top:8px">종족마다 슬롯 1개씩만 현실적으로 ${sd.label}(으)로 바꾼다고 해도(<b>${picksHtml}</b>) 최대 <b>${acc.toFixed(dp)}${unit}</b>까지고, 부족분 <b>${remain.toFixed(dp)}${unit}</b> 중 <b>${stillShort.toFixed(dp)}${unit}</b>는 펫 슬롯 스왑만으로는 못 채웁니다 — 마석/영석이나 영혼각인으로 채우세요.</div>`;
+    } else {
+      el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}는 종족당 슬롯 1개씩 우선순위 순으로 <b>${picksHtml}</b>을(를) ${sd.label}(으)로 바꾸면 채울 수 있습니다.</div>`;
+    }
   };
 
   const renderValueCell = r => {
