@@ -88,6 +88,8 @@ const stoneTypeFor = part => (ACCESSORY_SLOTS.has(part) ? '영석' : '마석');
 const GRADE_MAX = { '유일': 4, '영웅': 5 };
 const PET_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PET_GRADES_SHOWN = ['유일', '영웅'];
+// 종족 이해도는 "데리고 다니는 펫"이 아니라 종족별로 따로 쌓이는 적용 수치라 5개 종족이 전부 동시에 적용된다.
+const PET_RACES = ['지성', '야성', '자연', '변형', '특수'];
 
 let activeMode = 'pve'; // 'pve' | 'pvp'
 let focusStats = new Set(); // 관심 스탯으로 고른 키들 — 비어있으면 필터 없이 전체 표시
@@ -145,9 +147,9 @@ function parseRange(rangeStr) {
 }
 
 // ---------- 상태 (PVE/PVP 탭 전환과 무관하게 공유 — 같은 장비/펫 세팅을 다른 관점으로 볼 뿐) ----------
-// 펫 이해도는 종족 펫(지성/야성/자연/변형 중 하나) + 특수 펫을 동시에 데리고 다녀서 둘 다 합산된다.
-const petState = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
-const petStateSpecial = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
+// 5개 종족 이해도가 전부 동시에 적용되므로 종족별로 독립된 9슬롯 상태를 갖는다.
+const petStates = {};
+PET_RACES.forEach(race => { petStates[race] = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {}); });
 const gearState = EQUIP_SLOTS.reduce((acc, part) => {
   acc[part] = { grade: '유일', manaTargets: [], engrave: {}, base: {} }; // engrave/base: { [statKey]: value }
   return acc;
@@ -167,8 +169,7 @@ function setMode(mode) {
   if (mode === activeMode) return;
   activeMode = mode;
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.id === 'tab-' + mode ? 'true' : 'false'));
-  renderPetTable();
-  renderPetTableSpecial();
+  renderPetRaceBlocks();
   renderGearParts();
   renderGoalFinder();
   calc();
@@ -190,8 +191,7 @@ function renderFocusPicker() {
   box.querySelectorAll('.focusChk').forEach(chk => {
     chk.addEventListener('change', () => {
       if (chk.checked) focusStats.add(chk.value); else focusStats.delete(chk.value);
-      renderPetTable();
-      renderPetTableSpecial();
+      renderPetRaceBlocks();
       renderGearParts();
       renderGoalFinder();
       calc();
@@ -200,8 +200,7 @@ function renderFocusPicker() {
   $('clearFocusBtn').addEventListener('click', () => {
     focusStats.clear();
     renderFocusPicker();
-    renderPetTable();
-    renderPetTableSpecial();
+    renderPetRaceBlocks();
     renderGearParts();
     renderGoalFinder();
     calc();
@@ -262,11 +261,20 @@ function renderPetValueCell(s, state, selClass, cellPrefix) {
     calc();
   });
 }
-function renderPetTable() {
-  renderPetSection('petTable', $('petRace').value, petState, 'petSel', 'petValCell');
-}
-function renderPetTableSpecial() {
-  renderPetSection('petTableSpecial', '특수', petStateSpecial, 'petSelSp', 'petValCellSp');
+function renderPetRaceBlocks() {
+  $('petRaceBlocks').innerHTML = `
+    <div class="gear-part-grid">
+    ${PET_RACES.map(race => `
+    <details class="card gear-part" open>
+      <summary><span class="gear-part-name">${race}</span></summary>
+      <div id="petTable_${race}" style="overflow-x:auto"></div>
+    </details>`).join('')}
+    </div>`;
+  $('petExpandAllBtn').addEventListener('click', () => document.querySelectorAll('#petRaceBlocks .gear-part').forEach(d => { d.open = true; }));
+  $('petCollapseAllBtn').addEventListener('click', () => document.querySelectorAll('#petRaceBlocks .gear-part').forEach(d => { d.open = false; }));
+  PET_RACES.forEach(race => {
+    renderPetSection(`petTable_${race}`, race, petStates[race], `petSel_${race}`, `petVal_${race}_`);
+  });
 }
 
 // ---------- 장비 부위 렌더 ----------
@@ -446,11 +454,10 @@ const PET_AMPRES_SLOTS = new Set([3, 6, 9]);
 // ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
 function computeGoalPath(statKey) {
   const sd = STAT_BY_KEY[statKey];
-  const mainRace = $('petRace').value;
   const petRows = [];
   let petMaxTotal = 0;
-  // 종족 펫(9슬롯) + 특수 펫(9슬롯)을 동시에 데리고 다녀서 둘 다 합산한다.
-  [mainRace, '특수'].forEach(race => {
+  // 5개 종족 이해도가 전부 동시에 적용되므로 다 합산한다.
+  PET_RACES.forEach(race => {
     PET_SLOTS.forEach(s => {
       if (!sd.pct && PET_AMPRES_SLOTS.has(s)) return;
       const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
@@ -469,9 +476,9 @@ function computeGoalPath(statKey) {
   const spiritRows = manaOpts.filter(o => o.item.indexOf('영석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
 
   const involved = new Set(petRows.map(r => r.race));
-  const noOptionRaces = [mainRace, '특수'].filter(r => !involved.has(r));
+  const noOptionRaces = PET_RACES.filter(r => !involved.has(r));
 
-  return { race: `${mainRace} + 특수`, petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces };
+  return { race: PET_RACES.join('+'), petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces };
 }
 
 function renderGoalResult() {
@@ -482,7 +489,7 @@ function renderGoalResult() {
   const sd = STAT_BY_KEY[statKey];
   const unit = sd.pct ? '%' : '';
   const dp = sd.pct ? 2 : 1;
-  const { race, petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
+  const { petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
   const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
   const remain = target - petMaxTotal;
 
@@ -515,9 +522,9 @@ function renderGoalResult() {
     <div class="note" style="margin-top:0">${suggestion}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
       <div>
-        <div class="engrave-cat-label">펫 이해도 (종족: ${race}) — 슬롯당 최대</div>
+        <div class="engrave-cat-label">펫 이해도 (5종족 합산) — 슬롯당 최대</div>
         ${petTableHtml}
-        ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 펫에는 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
+        ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
       </div>
       <div>
         <div class="engrave-cat-label">마석 (무기/방어구)</div>
@@ -548,7 +555,9 @@ function calc() {
   shown.forEach(sd => { petTotals[sd.key] = 0; manaTotals[sd.key] = 0; engraveTotals[sd.key] = 0; baseTotals[sd.key] = 0; });
   const shownKeys = new Set(shown.map(sd => sd.key));
 
-  [['petSel', petState], ['petSelSp', petStateSpecial]].forEach(([selClass, state]) => {
+  PET_RACES.forEach(race => {
+    const state = petStates[race];
+    const selClass = `petSel_${race}`;
     PET_SLOTS.forEach(s => {
       const idx = state[s].idx;
       if (idx < 0) return;
@@ -615,15 +624,13 @@ function calc() {
     </table>`;
 }
 
-$('petRace').addEventListener('change', () => { renderPetTable(); renderGoalResult(); calc(); });
 $('showAllStatsChk').addEventListener('change', calc);
 $('goalStat').addEventListener('change', renderGoalResult);
 $('goalTarget').addEventListener('input', renderGoalResult);
 
 renderFocusPicker();
 renderTabs();
-renderPetTable();
-renderPetTableSpecial();
+renderPetRaceBlocks();
 renderGearParts();
 renderGoalFinder();
 calc();

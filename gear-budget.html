@@ -65,17 +65,12 @@
 
   <div class="card" style="margin-top:16px">
     <h2>펫 이해도 기여분</h2>
-    <div class="field"><label>종족</label>
-      <select id="petRace">
-        <option value="지성" selected>지성</option>
-        <option value="야성">야성</option>
-        <option value="자연">자연</option>
-        <option value="변형">변형</option>
-      </select>
+    <div class="note" style="margin-top:0">종족 이해도는 "데리고 다니는 펫"이 아니라 <b>종족별로 따로 쌓이는 적용 수치</b>라, 지성·야성·자연·변형·특수 <b>5개 종족이 전부 동시에 적용</b>됩니다. 종족마다 9슬롯씩 골라서 입력하면 5개 종족 전부 합산됩니다.</div>
+    <div class="gear-part-toolbar" style="margin-top:10px">
+      <button type="button" id="petExpandAllBtn">전체 펼치기</button>
+      <button type="button" id="petCollapseAllBtn">전체 접기</button>
     </div>
-    <div id="petTable" style="overflow-x:auto"></div>
-    <div class="sect" style="margin-top:14px">특수 <span style="color:var(--muted);font-weight:400;font-size:12px">— 종족과 별개로 항상 같이 챙기는 펫이라 합계에 그대로 더합니다</span></div>
-    <div id="petTableSpecial" style="overflow-x:auto"></div>
+    <div id="petRaceBlocks"></div>
     <div class="note">※ 슬롯 하나엔 실제로 옵션 하나만 붙습니다 — 목록은 <b>유일·영웅 등급 옵션 전부</b>를 보여주고, 지금 탭(PVE/PVP)에 해당하는 스탯은 카테고리별로 위에 모아뒀습니다("기타 옵션"을 골라도 표는 참고용으로 보이지만 총합에는 안 들어갑니다). 슬롯마다 뭘 챙겼다고 가정할지 하나 고르고, 그 옵션의 수치 범위 안에서 얼마를 얻었다고 볼지 입력하세요. 확률 계산이 아니라 "이미 이렇게 나왔다"를 가정한 합산입니다.</div>
   </div>
 
