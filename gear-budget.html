@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아이온2 부위별 스탯 예산 계산기</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav">
+    <a href="index.html">스탯 계산기</a>
+    <a href="pet-calc.html">펫 이해도 계산기</a>
+    <a href="manastone-calc.html">마석·영석 계산기</a>
+    <a href="gear-budget.html" class="on">부위별 스탯 예산</a>
+    <a href="odd-calc.html">오드→키나 계산기</a>
+    <a href="checklist.html">숙제 체크리스트</a>
+  </nav>
+
+  <header class="head">
+    <h1>아이온2 <span>부위별 스탯 예산 계산기</span></h1>
+    <p class="sub">철벽·재생·막기·회피·명중·치명타 저항 6개 방어 스탯을, 장비 14부위(유일/영웅 등급 선택) × 마석·영석 + 영혼각인 + 펫 이해도로 얼마까지 챙길 수 있는지 합산합니다.</p>
+  </header>
+
+  <div class="disclaimer">
+    ⚠ 마석/영석·펫 이해도 수치는 <b>NC 공식 확률정보</b> 원문 표 기반(각 계산기 페이지와 동일 출처)입니다. 여기서는 확률이 아니라 "이 등급·이 수치를 챙겼다고 가정하면 얼마인지" 그냥 더하는 예산 계산기입니다.<br>
+    <span class="disclaimer-note">* <b>영혼각인은 부위별 수치 데이터를 구하지 못했습니다</b> — NC 공식 페이지도 방어구만 236페이지에 아이템명별로 흩어져 있고, 커뮤니티에도 정리된 표가 없습니다. 그래서 영혼각인 칸은 참고값 없이 직접 입력하는 방식입니다.</span>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>총합 요약</h2>
+    <div id="summaryTable" style="overflow-x:auto"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>펫 이해도 기여분</h2>
+    <div class="field"><label>종족</label>
+      <select id="petRace">
+        <option value="지성" selected>지성</option>
+        <option value="야성">야성</option>
+        <option value="자연">자연</option>
+        <option value="변형">변형</option>
+        <option value="특수">특수</option>
+      </select>
+    </div>
+    <div id="petTable" style="overflow-x:auto"></div>
+    <div class="note">※ 슬롯 하나엔 실제로 옵션 하나만 붙습니다 — 슬롯마다 6개 스탯 중 뭘 챙겼다고 가정할지 하나 고르고, 그 옵션의 수치 범위 안에서 얼마를 얻었다고 볼지 입력하세요. 확률 계산이 아니라 "이미 이렇게 나왔다"를 가정한 합산입니다.</div>
+  </div>
+
+  <div id="gearParts"></div>
+
+  <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
+</div>
+<script src="pet-data.js"></script>
+<script src="manastone-data.js"></script>
+<script src="gear-budget.js"></script>
+</body>
+</html>
