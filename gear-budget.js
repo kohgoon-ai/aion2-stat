@@ -468,7 +468,10 @@ function computeGoalPath(statKey) {
   const stoneRows = manaOpts.filter(o => o.item.indexOf('마석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
   const spiritRows = manaOpts.filter(o => o.item.indexOf('영석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
 
-  return { race: `${mainRace} + 특수`, petRows, petMaxTotal, stoneRows, spiritRows };
+  const involved = new Set(petRows.map(r => r.race));
+  const noOptionRaces = [mainRace, '특수'].filter(r => !involved.has(r));
+
+  return { race: `${mainRace} + 특수`, petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces };
 }
 
 function renderGoalResult() {
@@ -479,7 +482,7 @@ function renderGoalResult() {
   const sd = STAT_BY_KEY[statKey];
   const unit = sd.pct ? '%' : '';
   const dp = sd.pct ? 2 : 1;
-  const { race, petRows, petMaxTotal, stoneRows, spiritRows } = computeGoalPath(statKey);
+  const { race, petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
   const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
   const remain = target - petMaxTotal;
 
@@ -514,6 +517,7 @@ function renderGoalResult() {
       <div>
         <div class="engrave-cat-label">펫 이해도 (종족: ${race}) — 슬롯당 최대</div>
         ${petTableHtml}
+        ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 펫에는 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
       </div>
       <div>
         <div class="engrave-cat-label">마석 (무기/방어구)</div>
