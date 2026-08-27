@@ -502,6 +502,9 @@ function renderGoalResult() {
   const statKey = $('goalStat').value;
   const target = parseFloat($('goalTarget').value) || 0;
   const engraveVal = parseFloat($('goalCurrentEngrave').value) || 0;
+  const rawManual = $('goalCurrentValue').value;
+  const hasManual = rawManual.trim() !== '';
+  const manualValue = hasManual ? (parseFloat(rawManual) || 0) : 0;
   const box = $('goalResult');
   if (!statKey) { box.innerHTML = ''; return; }
   if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaEntries = {}; }
@@ -515,7 +518,8 @@ function renderGoalResult() {
     return (type === '마석' && stoneRows.length) || (type === '영석' && spiritRows.length);
   });
   const manaEnteredSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-  const currentTotal = petAvgTotal + engraveVal + manaEnteredSum;
+  const autoTotal = petAvgTotal + engraveVal + manaEnteredSum;
+  const currentTotal = hasManual ? manualValue : autoTotal;
   const remain = target - currentTotal;
 
   const petTableHtml = petRows.length ? `
@@ -552,9 +556,10 @@ function renderGoalResult() {
       ${goalMetricBox('goalMetricPet', '펫 이해도 평균 총합', `${petAvgTotal.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricEngrave', '영혼각인', `${engraveVal.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricMana', '마석/영석 합계', `${manaEnteredSum.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricTotal', '현재 총합', `${currentTotal.toFixed(dp)}${unit}`, { color: 'var(--gold)' })}
+      ${goalMetricBox('goalMetricTotal', hasManual ? '현재 총합 (직접 입력)' : '현재 총합 (자동 계산)', `${currentTotal.toFixed(dp)}${unit}`, { color: 'var(--gold)' })}
       ${goalMetricBox('goalMetricRemain', remain > 0 ? '부족분' : '달성!', remain > 0 ? `${remain.toFixed(dp)}${unit}` : `+${(-remain).toFixed(dp)}${unit}`, { big: true, color: remain > 0 ? 'var(--red)' : 'var(--gold)', border: remain > 0 ? 'var(--red)' : 'var(--gold)' })}
     </div>
+    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 아래 영혼각인·마석 합계는 참고용이며 부족분 계산에 다시 더하지 않습니다.</div>` : ''}
     ${tip ? `<div class="note" style="margin-top:0">${tip}</div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
       <div>
@@ -570,19 +575,19 @@ function renderGoalResult() {
       </div>
     </div>
     <details class="card" style="margin-top:12px;padding:10px 14px" open>
-      <summary style="cursor:pointer;color:var(--muted);font-size:13px">④ 부위별 마석/영석 수치 입력 — 입력하면 위 "마석/영석 합계"·"부족분"에 자동 반영됩니다</summary>
+      <summary style="cursor:pointer;color:var(--muted);font-size:13px">⑤ 부위별 마석/영석 수치 입력 — 입력하면 위 "마석/영석 합계"에 자동 반영됩니다${hasManual ? ' (③을 직접 입력했으므로 부족분엔 반영되지 않음)' : ''}</summary>
       <div id="goalManaGrid" style="margin-top:10px"></div>
     </details>`;
 
-  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal);
+  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue);
 }
 
-function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal) {
+function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue) {
   const box = $('goalManaGrid');
   if (!box) return;
   const updateSum = () => {
     const sum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-    const total = petAvgTotal + engraveVal + sum;
+    const total = hasManual ? manualValue : (petAvgTotal + engraveVal + sum);
     const remain = target - total;
     const manaEl = $('goalMetricMana');
     const totalEl = $('goalMetricTotal');
@@ -724,6 +729,7 @@ function calc() {
 $('showAllStatsChk').addEventListener('change', calc);
 $('goalStat').addEventListener('change', renderGoalResult);
 $('goalTarget').addEventListener('input', renderGoalResult);
+$('goalCurrentValue').addEventListener('input', renderGoalResult);
 $('goalCurrentEngrave').addEventListener('input', renderGoalResult);
 
 renderFocusPicker();

@@ -51,10 +51,11 @@
 
   <div class="card" style="margin-top:16px">
     <h2>목표 수치 달성 경로 <span style="color:var(--muted);font-weight:400;font-size:12px">— 원하는 스탯을 얼마나, 어디서 챙길지</span></h2>
-    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르면, 펫 이해도는 슬롯 평균치 기준으로 자동 계산하고, 영혼각인·마석/영석은 직접 입력한 만큼 자동으로 합산해서 부족분을 보여줍니다.</div>
+    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르세요. ③에 내 캐릭터 현재 수치를 직접 입력하면 그 값을 그대로 기준으로 쓰고, 비워두면 펫 이해도 평균 + ④영혼각인 + ⑤마석/영석 입력을 자동으로 합산해서 씁니다.</div>
     <div class="field"><label>① 계산할 스탯</label><select id="goalStat"></select></div>
     <div class="field"><label>② 목표 수치</label><input type="number" id="goalTarget" value="6000" step="1"></div>
-    <div class="field"><label>③ 내가 챙긴 영혼각인 수치</label><input type="number" id="goalCurrentEngrave" value="0" step="1"></div>
+    <div class="field"><label>③ 내 캐릭터 현재 수치 <span style="color:var(--muted);font-weight:400">(직접 입력 · 비워두면 자동 계산)</span></label><input type="number" id="goalCurrentValue" placeholder="비워두면 자동 계산" step="1"></div>
+    <div class="field"><label>④ 내가 챙긴 영혼각인 수치</label><input type="number" id="goalCurrentEngrave" value="0" step="1"></div>
     <div id="goalResult" style="margin-top:10px"></div>
   </div>
 
