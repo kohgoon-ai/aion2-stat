@@ -349,9 +349,11 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
     if (!best) { hintEl.textContent = ''; return; }
     const theoreticalMax = best.val;
     const gap = theoreticalMax - (entry.value || 0);
-    // 자세한 설명(왜 +N인지, 무슨 아이템 기준인지)은 위쪽 마석/영석 단락 안내문 한 곳에만 적어두고,
-    // 칸마다는 짧은 배지만 보여준다.
-    hintEl.textContent = gap > 0 ? `+${gap.toFixed(dp)}${unit} 더 가능` : `최대치 도달`;
+    // "+N 더 가능"만 있으면 뭐 기준인지 알 수 없다는 피드백이 있어서, 어떤 아이템·등급
+    // 기준 최댓값인지와 지금 입력값을 같이 적어준다.
+    hintEl.textContent = gap > 0
+      ? `${best.item} ${best.stage} 최대 ${theoreticalMax.toFixed(dp)}${unit} — 지금(${(entry.value || 0).toFixed(dp)}${unit})보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
+      : `${best.item} ${best.stage} 기준 최대치(${theoreticalMax.toFixed(dp)}${unit}) 도달`;
     hintEl.style.color = gap > 0 ? 'var(--gold)' : 'var(--muted)';
   };
 
