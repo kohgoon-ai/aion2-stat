@@ -14,6 +14,10 @@ const STAT_DEFS = [
   { key: 'atk', label: '공격력', cat: 'offense', mode: 'general', names: ['공격력'] },
   { key: 'atk_add', label: '추가 공격력', cat: 'offense', mode: 'general', names: ['추가 공격력'] },
   { key: 'atk_max', label: '최대 공격력', cat: 'offense', mode: 'general', names: ['최대 공격력'] },
+  // "위력"·"파괴"는 공격력을 %만큼 증가시키는 스탯(스탯 계산기 참고: 위력 1당 0.1%, 파괴 1당 0.2%).
+  // 마석/영석·펫 이해도 데이터엔 없고 영혼각인에만 있는 걸로 확인돼 직접 입력 목록에 추가.
+  { key: 'power', label: '위력', cat: 'offense', mode: 'general', names: ['위력'] },
+  { key: 'destr', label: '파괴', cat: 'offense', mode: 'general', names: ['파괴'] },
   { key: 'atk_crit', label: '치명타 공격력', cat: 'offense', mode: 'general', names: ['치명타 공격력'] },
   { key: 'atk_back', label: '후방 공격력', cat: 'offense', mode: 'general', names: ['후방 공격력'] },
   { key: 'atk_front', label: '전방 공격력', cat: 'offense', mode: 'general', names: ['전방 공격력'] },
