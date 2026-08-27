@@ -57,8 +57,12 @@ let goalManaCount = {}; // part -> 이 부위에서 목표 스탯이 들어있�
 let goalManaValues = {}; // part -> [칸별 수치, ...] (길이 = goalManaCount[part])
 
 function goalManaSlotCount(part) { return GRADE_MAX[goalManaGrade[part] || '유일']; }
-function goalManaPartContribution(part) {
-  return (goalManaValues[part] || []).reduce((a, v) => a + (v || 0), 0);
+// goalManaValues엔 게임에 표시되는 raw 수치를 그대로 저장한다(마석/영석 원문 표는 증폭·저항류도
+// "%" 없이 raw로만 나오기 때문 — 100 넣으면 100). 목표 스탯이 %(증폭류) 스탯이면 합산할 때만
+// RAW_TO_PCT("raw 100 ≈ 1.2%p")를 적용해서 %p로 바꾼다. % 스탯이 아니면 raw 그대로 더한다.
+function goalManaPartContribution(part, isPct) {
+  const rawSum = (goalManaValues[part] || []).reduce((a, v) => a + (v || 0), 0);
+  return isPct ? rawSum * RAW_TO_PCT : rawSum;
 }
 
 // 마석/영석과 똑같이: 종족마다 슬롯을 하나씩 고르게 하지 않고, "이 종족에 목표 스탯이
@@ -105,7 +109,7 @@ function renderGoalResult() {
     const type = stoneTypeFor(part);
     return (type === '마석' && stoneRows.length) || (type === '영석' && spiritRows.length);
   });
-  const manaEnteredSum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part), 0);
+  const manaEnteredSum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part, sd.pct), 0);
   const autoTotal = petActualTotal + engraveVal + manaEnteredSum;
   const currentTotal = hasManual ? manualValue : autoTotal;
   const remain = target - currentTotal;
@@ -161,7 +165,7 @@ function renderGoalResult() {
         <div style="font-size:20px;font-weight:800;color:var(--txt)" id="goalMetricMana">${manaEnteredSum.toFixed(dp)}${unit}</div>
       </div>
       <div class="field" style="margin-top:8px"><label>✒ 영혼각인으로 챙긴 수치 <span style="color:var(--muted);font-weight:400">(부위별 데이터가 없어서 총합만 직접 입력)</span></label><input type="number" id="goalCurrentEngrave" value="${engraveVal}" step="${dp === 2 ? '0.1' : '1'}"></div>
-      <div class="odd-nick" style="margin-top:6px">※ 아래 칸마다 <b>지금 그 부위에 이미 챙긴 수치</b>를 입력하세요. "+N" 배지는 <b>이 부위에서 1칸을 최고 등급 아이템으로 바꾸면(나머지 칸은 0으로 가정) 얼마나 더 늘릴 수 있는지</b>입니다.${bestStoneVal ? ` 마석 최고값: ${stoneRows[0].item} ${stoneRows[0].stage}(${bestStoneVal.toFixed(dp)}${unit}).` : ''}${bestSpiritVal ? ` 영석 최고값: ${spiritRows[0].item} ${spiritRows[0].stage}(${bestSpiritVal.toFixed(dp)}${unit}).` : ''}</div>
+      <div class="odd-nick" style="margin-top:6px">※ 아래 칸마다 <b>지금 그 부위에 이미 챙긴 수치</b>를 입력하세요${sd.pct ? ` — <b>마석/영석 표는 증폭·저항류도 "%" 없이 raw 수치로만 나오니, %가 아니라 아이템에 적힌 raw 숫자(예: 100)를 그대로 입력</b>하면 됩니다(합산할 때 "raw 100 ≈ 1.2%p"로 자동 환산)` : ''}. "+N" 배지는 <b>이 부위에서 1칸을 최고 등급 아이템으로 바꾸면(나머지 칸은 0으로 가정) 얼마나 더 늘릴 수 있는지</b>입니다.${bestStoneVal ? ` 마석 최고값: ${stoneRows[0].item} ${stoneRows[0].stage}(${sd.pct ? `raw ${stoneRows[0].rawVal}` : `${bestStoneVal.toFixed(dp)}${unit}`}).` : ''}${bestSpiritVal ? ` 영석 최고값: ${spiritRows[0].item} ${spiritRows[0].stage}(${sd.pct ? `raw ${spiritRows[0].rawVal}` : `${bestSpiritVal.toFixed(dp)}${unit}`}).` : ''}</div>
       ${tip ? `<div class="note" style="margin-top:8px">${tip}</div>` : ''}
       <div id="goalManaGrid" style="margin-top:10px"></div>
     </div>`;
@@ -357,7 +361,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
 
   const updatePartTotal = part => {
     const el = $('goalManaPartSubtotal_' + part);
-    if (el) el.textContent = `${goalManaPartContribution(part).toFixed(dp)}${unit}`;
+    if (el) el.textContent = `${goalManaPartContribution(part, sd.pct).toFixed(dp)}${unit}`;
   };
 
   const updatePriority = remain => {
@@ -386,7 +390,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
   };
 
   const updateSum = () => {
-    const sum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part), 0);
+    const sum = relevantParts.reduce((a, part) => a + goalManaPartContribution(part, sd.pct), 0);
     // 펫 이해도 쪽 입력은 별도 그리드(renderGoalPetGrid)가 실시간으로 갱신하므로,
     // 여기서도 화면에 지금 떠 있는 펫 총합을 그대로 읽어서 합친다(최신 값 보장).
     const livePetTotal = parseFloat(($('goalPetTotalDisplay') && $('goalPetTotalDisplay').textContent) || '0') || petActualTotal;
@@ -420,7 +424,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
     container.innerHTML = Array.from({ length: count }, (_, i) => `
       <div class="cost-cell" style="min-width:110px">
         <label>칸 ${i + 1}</label>
-        <input type="number" class="goalManaValInput" data-part="${part}" data-i="${i}" value="${values[i] || 0}" step="${dp === 2 ? '0.1' : '1'}">
+        <input type="number" class="goalManaValInput" data-part="${part}" data-i="${i}" value="${values[i] || 0}" step="1">
       </div>`).join('');
     for (let i = 0; i < count; i++) {
       const inp = document.querySelector(`.goalManaValInput[data-part="${part}"][data-i="${i}"]`);
@@ -445,14 +449,14 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
   box.innerHTML = relevantParts.map(part => {
     const grade = goalManaGrade[part] || '유일';
     const best = bestFor(part);
-    const partSum = goalManaPartContribution(part);
+    const partSum = goalManaPartContribution(part, sd.pct);
     return `
     <details class="card" style="margin-top:8px;padding:10px 12px" open>
       <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-weight:700">${part} <span style="font-weight:400;color:var(--muted);font-size:12px">(${stoneTypeFor(part)})</span></span>
         <span style="font-size:13px">현재 <b id="goalManaPartSubtotal_${part}" style="color:var(--gold)">${partSum.toFixed(dp)}${unit}</b></span>
       </summary>
-      ${best ? `<div class="odd-nick" style="margin-top:4px">참고 — 이 부위 ${stoneTypeFor(part)} 최고값: ${best.item} ${best.stage} (${best.val.toFixed(dp)}${unit})</div>` : ''}
+      ${best ? `<div class="odd-nick" style="margin-top:4px">참고 — 이 부위 ${stoneTypeFor(part)} 최고값: ${best.item} ${best.stage} (${sd.pct ? `raw ${best.rawVal} → 약 ${best.val.toFixed(dp)}${unit}` : `${best.val.toFixed(dp)}${unit}`})</div>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
         <div class="field" style="margin:0"><label>등급</label>
           <select class="goalManaGradeSel" data-part="${part}">
