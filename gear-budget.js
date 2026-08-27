@@ -127,9 +127,18 @@ function renderPetValueCell(s) {
 
 // ---------- 장비 부위 렌더 ----------
 function renderGearParts() {
-  $('gearParts').innerHTML = EQUIP_SLOTS.map(part => `
-    <div class="card" style="margin-top:16px">
-      <h2>${part}</h2>
+  $('gearParts').innerHTML = `
+    <div class="gear-part-toolbar">
+      <button type="button" id="expandAllBtn">전체 펼치기</button>
+      <button type="button" id="collapseAllBtn">전체 접기</button>
+    </div>
+    <div class="gear-part-grid">
+    ${EQUIP_SLOTS.map(part => `
+    <details class="card gear-part">
+      <summary>
+        <span class="gear-part-name">${part}</span>
+        <span class="gear-part-badge" id="partBadge-${part}">—</span>
+      </summary>
       <div class="field"><label>등급</label>
         <select class="gradeSel" data-part="${part}">
           <option value="유일">유일 (4칸)</option>
@@ -148,7 +157,15 @@ function renderGearParts() {
             <input type="number" class="engraveInput" data-part="${part}" data-stat="${sd.key}" value="0" step="1">
           </div>`).join('')}
       </div>
-    </div>`).join('');
+    </details>`).join('')}
+    </div>`;
+
+  $('expandAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('.gear-part').forEach(d => { d.open = true; });
+  });
+  $('collapseAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('.gear-part').forEach(d => { d.open = false; });
+  });
 
   EQUIP_SLOTS.forEach(part => {
     const gradeSel = document.querySelector(`.gradeSel[data-part="${part}"]`);
@@ -239,11 +256,19 @@ function calc() {
   });
 
   EQUIP_SLOTS.forEach(part => {
+    let manaSum = 0;
     gearState[part].manaTargets.forEach(t => {
       const o = MANA_OPTIONS[t.idx];
-      if (o) manaTotals[o.statKey] += o.val;
+      if (o) { manaTotals[o.statKey] += o.val; manaSum += o.val; }
     });
-    STATS.forEach(sd => { engraveTotals[sd.key] += gearState[part].engrave[sd.key] || 0; });
+    let engraveSum = 0;
+    STATS.forEach(sd => { const v = gearState[part].engrave[sd.key] || 0; engraveTotals[sd.key] += v; engraveSum += v; });
+
+    const badge = $('partBadge-' + part);
+    if (badge) {
+      const manaN = gearState[part].manaTargets.length;
+      badge.textContent = `${gearState[part].grade} · 마석 ${manaN}칸(${manaSum.toFixed(0)}) · 각인 합 ${engraveSum.toFixed(0)}`;
+    }
   });
 
   $('summaryTable').innerHTML = `
