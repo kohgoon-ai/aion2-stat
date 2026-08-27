@@ -292,19 +292,17 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
   };
   if (!relevantParts.length) { box.innerHTML = `<div class="odd-nick">이 스탯은 마석/영석 옵션이 없어서 입력할 부위가 없습니다.</div>`; return; }
   box.innerHTML = `
-    <div class="cost-grid">
+    <div class="cost-grid" style="grid-template-columns:repeat(auto-fill,minmax(96px,1fr))">
       ${relevantParts.map(part => {
         const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
         return `
         <div class="cost-cell">
           <label>${part} (${stoneTypeFor(part)})</label>
-          <div style="display:flex;gap:4px">
-            <select class="goalManaGradeSel" data-part="${part}" style="width:70px">
-              <option value="유일" ${entry.grade === '유일' ? 'selected' : ''}>유일(4)</option>
-              <option value="영웅" ${entry.grade === '영웅' ? 'selected' : ''}>영웅(5)</option>
-            </select>
-            <input type="number" class="goalManaValInput" data-part="${part}" value="${entry.value || 0}" step="${sd.pct ? '0.1' : '1'}" style="width:70px">
-          </div>
+          <select class="goalManaGradeSel" data-part="${part}" style="width:100%;margin-bottom:4px;background:#12121c;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:12px;padding:4px;font-family:inherit">
+            <option value="유일" ${entry.grade === '유일' ? 'selected' : ''}>유일(4)</option>
+            <option value="영웅" ${entry.grade === '영웅' ? 'selected' : ''}>영웅(5)</option>
+          </select>
+          <input type="number" class="goalManaValInput" data-part="${part}" value="${entry.value || 0}" step="${sd.pct ? '0.1' : '1'}">
           <div id="goalManaHint_${part}" class="odd-nick" style="margin-top:3px;font-size:11px"></div>
         </div>`;
       }).join('')}
