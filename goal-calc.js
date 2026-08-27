@@ -82,7 +82,7 @@ function renderGoalResult() {
   const dp = sd.pct ? 2 : 1;
   const { petRows, petByRace, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
   const petRacesWithOption = PET_RACES.filter(r => petByRace[r].slotCount > 0);
-  const petActualTotal = petRacesWithOption.reduce((a, r) => a + (goalPetEntries[r] || 0), 0);
+  const petActualTotal = petRows.reduce((a, r) => a + (goalPetEntries[`${r.race}__${r.slot}`] || 0), 0);
   const petAvgSum = petRacesWithOption.reduce((a, r) => a + petByRace[r].avgTotal, 0);
 
   const relevantParts = EQUIP_SLOTS.filter(part => {
@@ -133,7 +133,7 @@ function renderGoalResult() {
         <div class="engrave-cat-label" style="margin:0">🐾 펫 이해도</div>
         <div style="font-size:20px;font-weight:800;color:var(--txt)" id="goalPetTotalDisplay">${petActualTotal.toFixed(dp)}${unit}</div>
       </div>
-      <div class="odd-nick" style="margin-top:6px">종족마다 지금 이 스탯으로 얼마나 챙겼는지 입력하세요. "평균 목표"는 이 종족에서 슬롯을 평균만큼 챙겼을 때, "최대 가능"은 전 슬롯이 최고값일 때 기준입니다.${petSynergyNote ? ' ' + petSynergyNote : ''}</div>
+      <div class="odd-nick" style="margin-top:6px">종족·슬롯마다 지금 이 스탯을 얼마나 챙겼는지 입력하세요 — 슬롯별로 입력해야 어느 슬롯이 낮아서 부족한지 알 수 있습니다. 각 종족 단락의 "평균 목표"는 그 종족 슬롯들을 평균만큼 챙겼을 때, "최대"는 전 슬롯이 최고값일 때 기준입니다.${petSynergyNote ? ' ' + petSynergyNote : ''}</div>
       <div id="goalPetGrid" style="margin-top:10px"></div>
       ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 뺐습니다.</div>` : ''}
     </div>
@@ -156,17 +156,21 @@ function renderGoalResult() {
       <div class="odd-nick" style="margin-top:6px">위 ④ 칸에 입력한 값이 그대로 반영됩니다. 부위별 데이터가 없어서 총합만 직접 입력합니다.</div>
     </div>`;
 
-  renderGoalPetGrid(petRacesWithOption, petByRace, dp, unit, target, engraveVal, hasManual, manualValue);
+  renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, hasManual, manualValue);
   renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
 }
 
-function renderGoalPetGrid(petRacesWithOption, petByRace, dp, unit, target, engraveVal, hasManual, manualValue) {
+// 종족 총합 하나만 입력하면 "어느 슬롯이 낮아서 부족한지"를 알 수 없으니,
+// 이 스탯을 챙길 수 있는 슬롯마다(종족별로 최대 9개) 따로 입력받는다.
+function renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, hasManual, manualValue) {
   const box = $('goalPetGrid');
   if (!box) return;
-  if (!petRacesWithOption.length) { box.innerHTML = `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`; return; }
+  if (!petRows.length) { box.innerHTML = `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`; return; }
+
+  const rowKey = r => `${r.race}__${r.slot}`;
 
   const updateAll = () => {
-    const total = petRacesWithOption.reduce((a, r) => a + (goalPetEntries[r] || 0), 0);
+    const total = petRows.reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
     const petTotalEl = $('goalPetTotalDisplay');
     if (petTotalEl) petTotalEl.textContent = `${total.toFixed(dp)}${unit}`;
     // 마석/영석 합계는 그대로 두고, 펫 총합만 갱신된 상태로 현재 총합·부족분을 다시 계산한다.
@@ -187,23 +191,41 @@ function renderGoalPetGrid(petRacesWithOption, petByRace, dp, unit, target, engr
     }
   };
 
-  box.innerHTML = `
-    <table class="odd-table">
-      <thead><tr><th>종족</th><th>현재 챙긴 수치</th><th>평균 목표</th><th>최대 가능</th></tr></thead>
-      <tbody>${petRacesWithOption.map(race => {
-        const b = petByRace[race];
-        return `<tr>
-          <td>${race}</td>
-          <td><input type="number" class="goalPetValInput" data-race="${race}" value="${goalPetEntries[race] || 0}" step="${dp === 2 ? '0.1' : '1'}" style="width:80px"></td>
-          <td>${b.avgTotal.toFixed(dp)}${unit}</td>
-          <td>${b.maxTotal.toFixed(dp)}${unit}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
-  petRacesWithOption.forEach(race => {
-    const inp = document.querySelector(`.goalPetValInput[data-race="${race}"]`);
+  const updateRaceSubtotal = race => {
+    const el = $('goalPetRaceSubtotal_' + race);
+    if (!el) return;
+    const sum = petRows.filter(r => r.race === race).reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
+    el.textContent = `${sum.toFixed(dp)}${unit}`;
+  };
+
+  box.innerHTML = PET_RACES.filter(race => petByRace[race].slotCount > 0).map(race => {
+    const rows = petRows.filter(r => r.race === race).sort((a, b) => a.slot - b.slot);
+    const b = petByRace[race];
+    const raceSum = rows.reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
+    return `
+    <details class="card" style="margin-top:8px;padding:10px 12px" open>
+      <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <span style="font-weight:700">${race}</span>
+        <span style="font-size:12px;color:var(--muted)">현재 <b id="goalPetRaceSubtotal_${race}" style="color:var(--txt)">${raceSum.toFixed(dp)}${unit}</b> · 평균 목표 ${b.avgTotal.toFixed(dp)}${unit} · 최대 ${b.maxTotal.toFixed(dp)}${unit}</span>
+      </summary>
+      <table class="odd-table" style="margin-top:8px">
+        <thead><tr><th>슬롯</th><th>등급</th><th>범위(참고)</th><th>현재 챙긴 수치</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td>${r.slot}번</td>
+            <td>${r.grade}</td>
+            <td>${r.min}${unit} ~ ${r.max}${unit}</td>
+            <td><input type="number" class="goalPetValInput" data-key="${rowKey(r)}" value="${goalPetEntries[rowKey(r)] || 0}" step="${dp === 2 ? '0.1' : '1'}" style="width:80px"></td>
+          </tr>`).join('')}</tbody>
+      </table>
+    </details>`;
+  }).join('');
+
+  petRows.forEach(r => {
+    const inp = document.querySelector(`.goalPetValInput[data-key="${rowKey(r)}"]`);
     inp.addEventListener('input', () => {
-      goalPetEntries[race] = parseFloat(inp.value) || 0;
+      goalPetEntries[rowKey(r)] = parseFloat(inp.value) || 0;
+      updateRaceSubtotal(r.race);
       updateAll();
     });
   });
