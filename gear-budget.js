@@ -149,7 +149,7 @@ function parseRange(rangeStr) {
 const petState = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
 const petStateSpecial = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
 const gearState = EQUIP_SLOTS.reduce((acc, part) => {
-  acc[part] = { grade: '유일', manaTargets: [], engrave: {} }; // engrave: { [statKey]: value }
+  acc[part] = { grade: '유일', manaTargets: [], engrave: {}, base: {} }; // engrave/base: { [statKey]: value }
   return acc;
 }, {});
 
@@ -289,7 +289,9 @@ function renderGearParts() {
           <option value="영웅">영웅 (5칸)</option>
         </select>
       </div>
-      <div class="field"><label>${stoneTypeFor(part)} 사용 칸 수</label>
+      <div class="sect" style="margin-top:0">장비 자체 스탯 (직접 입력 · 지금 착용 중인 아이템에 적힌 수치)</div>
+      <div id="baseGrid-${part}"></div>
+      <div class="field" style="margin-top:14px"><label>${stoneTypeFor(part)} 사용 칸 수</label>
         <select class="manaCountSel" data-part="${part}"></select>
       </div>
       <div id="manaRows-${part}"></div>
@@ -312,6 +314,7 @@ function renderGearParts() {
       renderManaRows(part);
       calc();
     });
+    renderBaseGrid(part);
     renderManaCountSel(part);
     renderManaRows(part);
     renderEngraveGrid(part);
@@ -378,6 +381,32 @@ function renderManaRows(part) {
     sel.value = String(t.idx);
     sel.addEventListener('change', () => {
       t.idx = parseInt(sel.value, 10);
+      calc();
+    });
+  });
+}
+
+// ---------- 장비 자체 스탯: 마석/영석·영혼각인과 별개로, 착용 중인 아이템에 이미 붙어 있는 수치를 직접 입력 ----------
+function renderBaseGrid(part) {
+  const box = $('baseGrid-' + part);
+  const shown = visibleStats();
+  box.innerHTML = CATEGORIES.map(c => {
+    const opts = shown.filter(sd => sd.cat === c.key);
+    if (!opts.length) return '';
+    return `
+      <div class="engrave-cat-label">${c.label}</div>
+      <div class="cost-grid">
+        ${opts.map(sd => `
+          <div class="cost-cell">
+            <label>${sd.label}${sd.pct ? ' (%)' : ''}</label>
+            <input type="number" class="baseInput" data-part="${part}" data-stat="${sd.key}" value="${gearState[part].base[sd.key] || 0}" step="${sd.pct ? '0.1' : '1'}">
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+  shown.forEach(sd => {
+    const inp = document.querySelector(`.baseInput[data-part="${part}"][data-stat="${sd.key}"]`);
+    inp.addEventListener('input', () => {
+      gearState[part].base[sd.key] = parseFloat(inp.value) || 0;
       calc();
     });
   });
@@ -511,8 +540,8 @@ function renderGoalFinder() {
 // ---------- 합산 & 요약 ----------
 function calc() {
   const shown = visibleStats();
-  const petTotals = {}, manaTotals = {}, engraveTotals = {};
-  shown.forEach(sd => { petTotals[sd.key] = 0; manaTotals[sd.key] = 0; engraveTotals[sd.key] = 0; });
+  const petTotals = {}, manaTotals = {}, engraveTotals = {}, baseTotals = {};
+  shown.forEach(sd => { petTotals[sd.key] = 0; manaTotals[sd.key] = 0; engraveTotals[sd.key] = 0; baseTotals[sd.key] = 0; });
   const shownKeys = new Set(shown.map(sd => sd.key));
 
   [['petSel', petState], ['petSelSp', petStateSpecial]].forEach(([selClass, state]) => {
@@ -527,7 +556,7 @@ function calc() {
   });
 
   EQUIP_SLOTS.forEach(part => {
-    let manaSum = 0, engraveSum = 0;
+    let manaSum = 0, engraveSum = 0, baseSum = 0;
     gearState[part].manaTargets.forEach(t => {
       const o = MANA_OPTIONS[t.idx];
       if (o && shownKeys.has(o.statKey)) { manaTotals[o.statKey] += o.val; manaSum += o.val; }
@@ -537,10 +566,15 @@ function calc() {
       const v = gearState[part].engrave[key] || 0;
       if (v && shownKeys.has(key)) { engraveTotals[key] += v; engraveSum += v; engraveN++; }
     });
+    let baseN = 0;
+    Object.keys(gearState[part].base).forEach(key => {
+      const v = gearState[part].base[key] || 0;
+      if (v && shownKeys.has(key)) { baseTotals[key] += v; baseSum += v; baseN++; }
+    });
     const badge = $('partBadge-' + part);
     if (badge) {
       const manaN = gearState[part].manaTargets.length;
-      badge.textContent = `${gearState[part].grade} · 마석 ${manaN}칸(${manaSum.toFixed(0)}) · 각인 ${engraveN}개(${engraveSum.toFixed(0)})`;
+      badge.textContent = `${gearState[part].grade} · 기본 ${baseN}개(${baseSum.toFixed(0)}) · 마석 ${manaN}칸(${manaSum.toFixed(0)}) · 각인 ${engraveN}개(${engraveSum.toFixed(0)})`;
     }
   });
 
@@ -548,25 +582,26 @@ function calc() {
   const rowsByCategory = CATEGORIES.map(c => {
     const catStats = shown.filter(sd => sd.cat === c.key).filter(sd => {
       if (showAll) return true;
-      return petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key] > 0;
+      return petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key] + baseTotals[sd.key] > 0;
     });
     return { c, catStats };
   }).filter(g => g.catStats.length);
 
   if (rowsByCategory.length === 0) {
-    $('summaryTable').innerHTML = `<div class="odd-nick" style="padding:10px 0">아직 입력한 값이 없습니다 — 아래 "펫 이해도 기여분"과 각 장비 부위 카드에서 마석/영석·영혼각인 수치를 입력하면 여기 표시됩니다.</div>`;
+    $('summaryTable').innerHTML = `<div class="odd-nick" style="padding:10px 0">아직 입력한 값이 없습니다 — 아래 "펫 이해도 기여분"과 각 장비 부위 카드에서 장비 기본 스탯·마석/영석·영혼각인 수치를 입력하면 여기 표시됩니다.</div>`;
     return;
   }
   $('summaryTable').innerHTML = `
     <table class="odd-table">
-      <thead><tr><th>스탯</th><th>펫 이해도</th><th>마석/영석</th><th>영혼각인</th><th>총합</th></tr></thead>
+      <thead><tr><th>스탯</th><th>펫 이해도</th><th>장비 기본</th><th>마석/영석</th><th>영혼각인</th><th>총합</th></tr></thead>
       <tbody>${rowsByCategory.map(({ c, catStats }) => {
-        return `<tr class="cat-row"><td colspan="5">${c.label}</td></tr>` + catStats.map(sd => {
-          const total = petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key];
+        return `<tr class="cat-row"><td colspan="6">${c.label}</td></tr>` + catStats.map(sd => {
+          const total = petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key] + baseTotals[sd.key];
           const unit = sd.pct ? '%' : '';
           return `<tr>
             <td>${sd.label}${sd.pct ? ' <span class="odd-nick">(%)</span>' : ''}</td>
             <td>${petTotals[sd.key].toFixed(1)}${unit}</td>
+            <td>${baseTotals[sd.key].toFixed(1)}${unit}</td>
             <td>${manaTotals[sd.key].toFixed(1)}${unit}</td>
             <td>${engraveTotals[sd.key].toFixed(1)}${unit}</td>
             <td class="odd-eff">${total.toFixed(1)}${unit}</td>
