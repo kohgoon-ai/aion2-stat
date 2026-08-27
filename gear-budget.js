@@ -1,95 +1,6 @@
 const $ = id => document.getElementById(id);
 
-// ---------- 스탯 카탈로그 ----------
-// mode: 'general'(PVE·PVP 공통) | 'pve'(PVE 탭에서만) | 'pvp'(PVP 탭에서만)
-// names: 실제 데이터(마석/영석·펫 이해도)에 등장하는 정확한 스탯 표기 — 부분일치가 아니라
-// 정확히 일치하는 것만 매칭한다("치명타"가 "치명타 저항"/"치명타 공격력" 등과 안 섞이도록).
-const CATEGORIES = [
-  { key: 'offense', label: '공격' },
-  { key: 'defense', label: '방어' },
-  { key: 'amplify', label: '피해 증폭·내성' },
-  { key: 'misc', label: '기타' },
-];
-const STAT_DEFS = [
-  { key: 'atk', label: '공격력', cat: 'offense', mode: 'general', names: ['공격력'] },
-  { key: 'atk_add', label: '추가 공격력', cat: 'offense', mode: 'general', names: ['추가 공격력'] },
-  { key: 'atk_max', label: '최대 공격력', cat: 'offense', mode: 'general', names: ['최대 공격력'] },
-  // "위력"·"파괴"는 공격력을 %만큼 증가시키는 스탯(스탯 계산기 참고: 위력 1당 0.1%, 파괴 1당 0.2%).
-  // 마석/영석·펫 이해도 데이터엔 없고 영혼각인에만 있는 걸로 확인돼 직접 입력 목록에 추가.
-  { key: 'power', label: '위력', cat: 'offense', mode: 'general', names: ['위력'] },
-  { key: 'destr', label: '파괴', cat: 'offense', mode: 'general', names: ['파괴'] },
-  // "공격력 증가"는 스탯창의 flat "공격력"과 별개로, 영혼각인에 %로 붙는 공격력 증가 스탯.
-  { key: 'atk_pct', label: '공격력 증가', cat: 'offense', mode: 'general', names: ['공격력 증가'], pct: true },
-  { key: 'atk_crit', label: '치명타 공격력', cat: 'offense', mode: 'general', names: ['치명타 공격력'] },
-  { key: 'atk_back', label: '후방 공격력', cat: 'offense', mode: 'general', names: ['후방 공격력'] },
-  { key: 'atk_front', label: '전방 공격력', cat: 'offense', mode: 'general', names: ['전방 공격력'] },
-  { key: 'critrate', label: '치명타', cat: 'offense', mode: 'general', names: ['치명타'] },
-  { key: 'pen', label: '관통', cat: 'offense', mode: 'general', names: ['관통'] },
-  { key: 'smite', label: '강타', cat: 'offense', mode: 'general', names: ['강타'], pct: true },
-  { key: 'backcrit', label: '후방 치명타', cat: 'offense', mode: 'general', names: ['후방 치명타'] },
-  { key: 'frontcrit', label: '전방 치명타', cat: 'offense', mode: 'general', names: ['전방 치명타'] },
-  { key: 'boss_atk', label: '보스 공격력', cat: 'offense', mode: 'pve', names: ['보스 공격력'] },
-  { key: 'pve_atk', label: 'PVE 공격력', cat: 'offense', mode: 'pve', names: ['PVE 공격력'] },
-  { key: 'pvp_atk', label: 'PVP 공격력', cat: 'offense', mode: 'pvp', names: ['PVP 공격력'] },
-  { key: 'pvp_critrate', label: 'PVP 치명타', cat: 'offense', mode: 'pvp', names: ['PVP 치명타'] },
-
-  { key: 'def', label: '방어력', cat: 'defense', mode: 'general', names: ['방어력'] },
-  { key: 'def_add', label: '추가 방어력', cat: 'defense', mode: 'general', names: ['추가 방어력'] },
-  { key: 'def_back', label: '후방 방어력', cat: 'defense', mode: 'general', names: ['후방 방어력'] },
-  { key: 'def_front', label: '전방 방어력', cat: 'defense', mode: 'general', names: ['전방 방어력'] },
-  { key: 'def_crit', label: '치명타 방어력', cat: 'defense', mode: 'general', names: ['치명타 방어력'] },
-  { key: 'block', label: '막기', cat: 'defense', mode: 'general', names: ['막기'] },
-  { key: 'evade', label: '회피', cat: 'defense', mode: 'general', names: ['추가 회피'] },
-  { key: 'hit', label: '명중', cat: 'defense', mode: 'general', names: ['추가 명중'] },
-  { key: 'critres', label: '치명타 저항', cat: 'defense', mode: 'general', names: ['치명타 저항'] },
-  { key: 'backcritres', label: '후방 치명타 저항', cat: 'defense', mode: 'general', names: ['후방 치명타 저항'] },
-  { key: 'frontcritres', label: '전방 치명타 저항', cat: 'defense', mode: 'general', names: ['전방 치명타 저항'] },
-  { key: 'ironwall', label: '철벽', cat: 'defense', mode: 'general', names: ['철벽'], pct: true },
-  { key: 'regen', label: '재생', cat: 'defense', mode: 'general', names: ['재생'], pct: true },
-  { key: 'pve_def', label: 'PVE 방어력', cat: 'defense', mode: 'pve', names: ['PVE 방어력'] },
-  { key: 'pvp_def', label: 'PVP 방어력', cat: 'defense', mode: 'pvp', names: ['PVP 방어력'] },
-  { key: 'pvp_hit', label: 'PVP 명중', cat: 'defense', mode: 'pvp', names: ['PVP 명중'] },
-  { key: 'pvp_evade', label: 'PVP 회피', cat: 'defense', mode: 'pvp', names: ['PVP 회피'] },
-  { key: 'pvp_critres', label: 'PVP 치명타 저항', cat: 'defense', mode: 'pvp', names: ['PVP 치명타 저항'] },
-  { key: 'pvp_block', label: 'PVP 막기', cat: 'defense', mode: 'pvp', names: ['PVP 막기'] },
-
-  { key: 'dmgamp', label: '피해 증폭', cat: 'amplify', mode: 'general', names: ['피해 증폭'], pct: true },
-  { key: 'wdmgamp', label: '무기 피해 증폭', cat: 'amplify', mode: 'general', names: ['무기 피해 증폭'], pct: true },
-  { key: 'backdmgamp', label: '후방 피해 증폭', cat: 'amplify', mode: 'general', names: ['후방 피해 증폭'], pct: true },
-  { key: 'frontdmgamp', label: '전방 피해 증폭', cat: 'amplify', mode: 'general', names: ['전방 피해 증폭'], pct: true },
-  { key: 'critdmgamp', label: '치명타 피해 증폭', cat: 'amplify', mode: 'general', names: ['치명타 피해 증폭'], pct: true },
-  { key: 'racedmgamp', label: '종족 피해 증폭', cat: 'amplify', mode: 'general', names: ['지성족 피해 증폭', '야성족 피해 증폭', '자연족 피해 증폭', '변형족 피해 증폭'], pct: true },
-  { key: 'perfect', label: '완벽', cat: 'amplify', mode: 'general', names: ['완벽'], pct: true },
-  { key: 'pve_dmgamp', label: 'PVE 피해 증폭', cat: 'amplify', mode: 'pve', names: ['PVE 피해 증폭'], pct: true },
-  { key: 'pvp_dmgamp', label: 'PVP 피해 증폭', cat: 'amplify', mode: 'pvp', names: ['PVP 피해 증폭'], pct: true },
-  { key: 'dmgres', label: '피해 내성', cat: 'amplify', mode: 'general', names: ['피해 내성'], pct: true },
-  { key: 'wdmgres', label: '무기 피해 내성', cat: 'amplify', mode: 'general', names: ['무기 피해 내성'], pct: true },
-  { key: 'backdmgres', label: '후방 피해 내성', cat: 'amplify', mode: 'general', names: ['후방 피해 내성'], pct: true },
-  { key: 'frontdmgres', label: '전방 피해 내성', cat: 'amplify', mode: 'general', names: ['전방 피해 내성'], pct: true },
-  { key: 'critdmgres', label: '치명타 피해 내성', cat: 'amplify', mode: 'general', names: ['치명타 피해 내성'], pct: true },
-  { key: 'racedmgres', label: '종족 피해 내성', cat: 'amplify', mode: 'general', names: ['지성족 피해 내성', '야성족 피해 내성', '자연족 피해 내성', '변형족 피해 내성'], pct: true },
-  { key: 'pve_dmgres', label: 'PVE 피해 내성', cat: 'amplify', mode: 'pve', names: ['PVE 피해 내성'], pct: true },
-
-  { key: 'hp', label: '생명력', cat: 'misc', mode: 'general', names: ['생명력'] },
-  { key: 'mp', label: '정신력', cat: 'misc', mode: 'general', names: ['정신력'] },
-  { key: 'soulstone', label: '봉혼석 추가 피해', cat: 'misc', mode: 'general', names: ['봉혼석 추가 피해'] },
-];
-const STAT_BY_KEY = {};
-STAT_DEFS.forEach(sd => { STAT_BY_KEY[sd.key] = sd; });
-const NAME_TO_STAT = {};
-STAT_DEFS.forEach(sd => sd.names.forEach(n => { NAME_TO_STAT[n] = sd; }));
-const STAT_OF = rawName => NAME_TO_STAT[rawName] || null;
-function statsForMode(mode) { return STAT_DEFS.filter(sd => sd.mode === 'general' || sd.mode === mode); }
-
-const EQUIP_SLOTS = ['무기', '투구', '상의', '하의', '장갑', '신발', '견갑', '망토', '목걸이', '반지1', '반지2', '귀걸이1', '귀걸이2', '브로치'];
-// 무기·방어구엔 마석만, 악세서리(목걸이·반지·귀걸이·브로치)엔 영석만 박을 수 있다.
-const ACCESSORY_SLOTS = new Set(['목걸이', '반지1', '반지2', '귀걸이1', '귀걸이2', '브로치']);
-const stoneTypeFor = part => (ACCESSORY_SLOTS.has(part) ? '영석' : '마석');
-const GRADE_MAX = { '유일': 4, '영웅': 5 };
-const PET_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-const PET_GRADES_SHOWN = ['유일', '영웅'];
-// 종족 이해도는 "데리고 다니는 펫"이 아니라 종족별로 따로 쌓이는 적용 수치라 5개 종족이 전부 동시에 적용된다.
-const PET_RACES = ['지성', '야성', '자연', '변형', '특수'];
+// 스탯 카탈로그·마석/영석 옵션·펫 옵션 조회 함수는 gear-defs.js(공용) 참고.
 
 let activeMode = 'pve'; // 'pve' | 'pvp'
 let focusStats = new Set(); // 관심 스탯으로 고른 키들 — 비어있으면 필터 없이 전체 표시
@@ -97,53 +8,6 @@ function visibleStats() {
   const modeStats = statsForMode(activeMode);
   if (focusStats.size === 0) return modeStats;
   return modeStats.filter(sd => focusStats.has(sd.key));
-}
-
-// 마석/영석 원문 표는 증폭·내성류도 "%" 표기 없이 raw 수치(예: 100)로만 나온다.
-// 이 프로젝트 스탯 계산기(index.html/app.js)에서 이미 쓰고 있는 "raw 100 ≈ +1.2%p(사용자 실측 제보 기준)"
-// 환산을 그대로 적용해 raw 값을 %p로 바꿔서 합산한다 — 공식 수치가 아닌 커뮤니티 추정 환산값이다.
-const RAW_TO_PCT = 1.2 / 100;
-
-// ---------- 마석/영석: 매칭되는 (아이템,단계,스탯,수치) 전부를 한 번만 뽑아둔다 ----------
-const MANA_OPTIONS = [];
-(function buildManaOptions() {
-  const STAGE_ORDER = ['기본', '상급', '최상급'];
-  Object.keys(MANASTONE_DATA).forEach(item => {
-    STAGE_ORDER.forEach(stage => {
-      const st = MANASTONE_DATA[item][stage];
-      if (!st) return;
-      st.opts.forEach(([stat, val]) => {
-        const sd = STAT_OF(stat);
-        if (!sd) return;
-        const raw = parseFloat(val);
-        const isPct = !!sd.pct;
-        const finalVal = isPct ? raw * RAW_TO_PCT : raw;
-        const label = isPct
-          ? `${item} ${stage} · ${stat} (raw ${raw} → 약 ${finalVal.toFixed(2)}%p 환산)`
-          : `${item} ${stage} · ${stat} (${raw})`;
-        MANA_OPTIONS.push({ item, stage, stat, val: finalVal, rawVal: raw, isPct, statKey: sd.key, label });
-      });
-    });
-  });
-  MANA_OPTIONS.sort((a, b) => b.val - a.val);
-  MANA_OPTIONS.forEach((o, i) => { o.idx = i; });
-})();
-
-// ---------- 펫: 종족·슬롯별 유일·영웅 등급 옵션 전부 ----------
-function petMatchesForSlot(race, slot) {
-  const out = [];
-  PET_GRADES_SHOWN.forEach(g => {
-    (PET_OPTIONS[race][String(slot)][g] || []).forEach(([stat, range]) => {
-      const sd = STAT_OF(stat);
-      out.push({ grade: g, stat, range, statKey: sd ? sd.key : null });
-    });
-  });
-  return out;
-}
-function parseRange(rangeStr) {
-  const isPercent = rangeStr.indexOf('%') >= 0;
-  const nums = rangeStr.replace(/%/g, '').split('~').map(s => parseFloat(s.trim()));
-  return { min: nums[0], max: nums.length > 1 ? nums[1] : nums[0], isPercent };
 }
 
 // ---------- 상태 (PVE/PVP 탭 전환과 무관하게 공유 — 같은 장비/펫 세팅을 다른 관점으로 볼 뿐) ----------
@@ -171,7 +35,6 @@ function setMode(mode) {
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.id === 'tab-' + mode ? 'true' : 'false'));
   renderPetRaceBlocks();
   renderGearParts();
-  renderGoalFinder();
   calc();
 }
 
@@ -193,7 +56,6 @@ function renderFocusPicker() {
       if (chk.checked) focusStats.add(chk.value); else focusStats.delete(chk.value);
       renderPetRaceBlocks();
       renderGearParts();
-      renderGoalFinder();
       calc();
     });
   });
@@ -202,7 +64,6 @@ function renderFocusPicker() {
     renderFocusPicker();
     renderPetRaceBlocks();
     renderGearParts();
-    renderGoalFinder();
     calc();
   });
 }
@@ -238,7 +99,6 @@ function renderPetSection(containerId, race, state, selClass, cellPrefix) {
       state[s].idx = parseInt(sel.value, 10);
       renderPetValueCell(s, state, selClass, cellPrefix);
       calc();
-      if ($('goalStat')) renderGoalResult();
     });
     renderPetValueCell(s, state, selClass, cellPrefix);
   });
@@ -260,7 +120,6 @@ function renderPetValueCell(s, state, selClass, cellPrefix) {
     v = Math.max(range2.min, Math.min(range2.max, v));
     state[s].value = v;
     calc();
-    if ($('goalStat')) renderGoalResult();
   });
 }
 function renderPetRaceBlocks() {
@@ -448,282 +307,6 @@ function renderEngraveGrid(part) {
   });
 }
 
-// 펫 이해도 9슬롯은 3개씩 방어(1·4·7)/공격(2·5·8)/증폭·내성(3·6·9) 전용으로 나뉜다.
-// 3·6·9엔 막기·치명타처럼 다른 슬롯에도 공통으로 뜨는 옵션이 데이터상 같이 섞여 있지만,
-// 실제로는 증폭·내성류를 챙기는 슬롯이라 증폭·내성이 아닌 스탯을 계산할 땐 제외해야 한다.
-const PET_AMPRES_SLOTS = new Set([3, 6, 9]);
-
-// ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
-function computeGoalPath(statKey) {
-  const sd = STAT_BY_KEY[statKey];
-  const petRows = [];
-  let petMaxTotal = 0;
-  // 5개 종족 이해도가 전부 동시에 적용되므로 다 합산한다.
-  PET_RACES.forEach(race => {
-    PET_SLOTS.forEach(s => {
-      if (!sd.pct && PET_AMPRES_SLOTS.has(s)) return;
-      const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
-      if (!matches.length) return;
-      let best = null, bestMax = -Infinity;
-      matches.forEach(m => {
-        const r = parseRange(m.range);
-        if (r.max > bestMax) { bestMax = r.max; best = { grade: m.grade, range: m.range, min: r.min, max: r.max }; }
-      });
-      if (best) { petRows.push({ race, slot: s, grade: best.grade, range: best.range, min: best.min, max: best.max }); petMaxTotal += best.max; }
-    });
-  });
-  // 매번 최대치가 나온다고 가정하는 건 비현실적이라, 컨설팅용 "펫 이해도 총합"은 슬롯별 평균(최소~최대의 중간값) 기준으로 계산한다.
-  const petAvgTotal = petRows.reduce((a, r) => a + (r.min + r.max) / 2, 0);
-
-  const manaOpts = MANA_OPTIONS.filter(o => o.statKey === statKey);
-  const stoneRows = manaOpts.filter(o => o.item.indexOf('마석') >= 0).sort((a, b) => b.val - a.val).slice(0, 8);
-  const spiritRows = manaOpts.filter(o => o.item.indexOf('영석') >= 0).sort((a, b) => b.val - a.val).slice(0, 8);
-
-  const involved = new Set(petRows.map(r => r.race));
-  const noOptionRaces = PET_RACES.filter(r => !involved.has(r));
-
-  return { race: PET_RACES.join('+'), petRows, petMaxTotal, petAvgTotal, stoneRows, spiritRows, noOptionRaces };
-}
-
-// 아래 "펫 이해도 기여분"에 종족별로 이미 입력해 둔 실제 값을 그대로 읽어서 합산한다 —
-// 평균으로 어림잡지 않고 실제로 뭘 챙겼다고 표시했는지를 쓰는 쪽이 더 정확하다.
-function computeActualPetTotal(statKey) {
-  let total = 0;
-  const byRace = {};
-  PET_RACES.forEach(race => {
-    const state = petStates[race];
-    let raceSum = 0;
-    PET_SLOTS.forEach(s => {
-      const idx = state[s].idx;
-      if (idx < 0) return;
-      const sel = document.querySelector(`.petSel_${race}[data-slot="${s}"]`);
-      const m = sel && sel._matches && sel._matches[idx];
-      if (!m || m.statKey !== statKey) return;
-      raceSum += state[s].value;
-    });
-    if (raceSum > 0) byRace[race] = raceSum;
-    total += raceSum;
-  });
-  return { total, byRace };
-}
-
-// 부위별로 이미 챙긴 마석/영석 수치를 참고용으로 수기 입력하는 선택 섹션 — 스탯을 바꾸면 초기화된다.
-let goalManaStatKey = null;
-let goalManaEntries = {}; // part -> { grade: '유일'|'영웅', value: number }
-
-function goalMetricBox(id, label, valueHtml, opts) {
-  opts = opts || {};
-  const big = opts.big ? 'font-size:26px' : 'font-size:20px';
-  const color = opts.color || 'var(--txt)';
-  return `
-    <div style="background:#15151f;border:1px solid ${opts.border || 'var(--line)'};border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${label}</div>
-      <div id="${id}" style="${big};font-weight:800;color:${color}">${valueHtml}</div>
-    </div>`;
-}
-
-function renderGoalResult() {
-  const statKey = $('goalStat').value;
-  const target = parseFloat($('goalTarget').value) || 0;
-  const engraveVal = parseFloat($('goalCurrentEngrave').value) || 0;
-  const rawManual = $('goalCurrentValue').value;
-  const hasManual = rawManual.trim() !== '';
-  const manualValue = hasManual ? (parseFloat(rawManual) || 0) : 0;
-  const box = $('goalResult');
-  if (!statKey) { box.innerHTML = ''; return; }
-  if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaEntries = {}; }
-  const sd = STAT_BY_KEY[statKey];
-  const unit = sd.pct ? '%' : '';
-  const dp = sd.pct ? 2 : 1;
-  const { petRows, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
-  const { total: petActualTotal, byRace: petActualByRace } = computeActualPetTotal(statKey);
-
-  const relevantParts = EQUIP_SLOTS.filter(part => {
-    const type = stoneTypeFor(part);
-    return (type === '마석' && stoneRows.length) || (type === '영석' && spiritRows.length);
-  });
-  const manaEnteredSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-  const autoTotal = petActualTotal + engraveVal + manaEnteredSum;
-  const currentTotal = hasManual ? manualValue : autoTotal;
-  const remain = target - currentTotal;
-
-  const petTableHtml = petRows.length ? `
-    <table class="odd-table">
-      <thead><tr><th>펫</th><th>슬롯</th><th>등급</th><th>필요 수치</th></tr></thead>
-      <tbody>${petRows.map(r => {
-        const avg = (r.min + r.max) / 2;
-        return `<tr><td>${r.race}</td><td>${r.slot}번</td><td>${r.grade}</td><td>최소 ${r.min}${unit} 이상 · 평균 ${avg.toFixed(dp)}${unit} 이상 필요 (최대 ${r.max}${unit})</td></tr>`;
-      }).join('')}</tbody>
-    </table>` : `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`;
-  const manaTableHtml = rows => rows.length
-    ? `<table class="odd-table"><thead><tr><th>아이템·단계</th><th>수치</th></tr></thead><tbody>${rows.map(o => `<tr><td>${o.item} ${o.stage}</td><td>${o.val.toFixed(dp)}${unit}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="odd-nick">해당 옵션 없음</div>`;
-
-  const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
-  let tip = '';
-  if (remain > 0 && bestMana) {
-    const isStone = bestMana.item.indexOf('마석') >= 0;
-    const totalPartsOfType = isStone ? (EQUIP_SLOTS.length - ACCESSORY_SLOTS.size) : ACCESSORY_SLOTS.size;
-    // 한 부위 안에서 최상급이 여러 칸 뜨는 건 기대하기 어려우니, 부위당 딱 1칸만 최고값이 뜨고
-    // 나머지 칸은 0이라고 보수적으로 잡는다("최대치 1개 · 나머지 최소 0개").
-    const partsNeeded = Math.ceil(remain / bestMana.val);
-    if (partsNeeded > totalPartsOfType) {
-      const maxFromMana = totalPartsOfType * bestMana.val;
-      const stillShort = remain - maxFromMana;
-      tip = `남은 ${remain.toFixed(dp)}${unit}를 부위당 1칸(최고값)만 뜬다고 보수적으로 잡아도 <b>${partsNeeded}부위</b>가 필요한데, ${isStone ? '마석' : '영석'}을 꽂을 수 있는 부위는 전체 <b>${totalPartsOfType}개</b>뿐이라 다 못 채웁니다. 그 부위 전부에 <b>${bestMana.item} ${bestMana.stage}(칸당 ${bestMana.val.toFixed(dp)}${unit})</b>를 챙겨도 최대 <b>${maxFromMana.toFixed(dp)}${unit}</b> 정도까지고, 나머지 <b>${stillShort.toFixed(dp)}${unit}</b>는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
-    } else {
-      tip = `남은 ${remain.toFixed(dp)}${unit}는 마석/영석으로 채운다고 하면, 한 부위에서 최상급이 여러 칸 뜨길 기대하기보다 <b>부위당 1칸만 최고값(${bestMana.item} ${bestMana.stage}, 칸당 ${bestMana.val.toFixed(dp)}${unit})이 뜨고 나머지 칸은 0</b>이라고 보수적으로 잡으면, 총 <b>${partsNeeded}부위</b>에서 이 스탯을 챙기면 됩니다.`;
-    }
-  } else if (remain > 0 && !bestMana) {
-    tip = `마석/영석엔 이 스탯 옵션이 없어서, 나머지는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
-  }
-
-  box.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:4px 0 12px">
-      ${goalMetricBox('goalMetricTarget', '목표', `${target.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricPet', '펫 이해도 총합 (내 입력값)', `${petActualTotal.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricEngrave', '영혼각인', `${engraveVal.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricMana', '마석/영석 합계', `${manaEnteredSum.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricTotal', hasManual ? '현재 총합 (직접 입력)' : '현재 총합 (자동 계산)', `${currentTotal.toFixed(dp)}${unit}`, { color: 'var(--gold)' })}
-      ${goalMetricBox('goalMetricRemain', remain > 0 ? '부족분' : '달성!', remain > 0 ? `${remain.toFixed(dp)}${unit}` : `+${(-remain).toFixed(dp)}${unit}`, { big: true, color: remain > 0 ? 'var(--red)' : 'var(--gold)', border: remain > 0 ? 'var(--red)' : 'var(--gold)' })}
-    </div>
-    <div class="odd-nick" style="margin-top:0">※ 펫 이해도 총합은 아래 "펫 이해도 기여분"에 종족별로 실제 입력한 값을 그대로 합산한 값입니다${Object.keys(petActualByRace).length ? ` — ${Object.entries(petActualByRace).map(([r, v]) => `${r} ${v.toFixed(dp)}${unit}`).join(', ')}` : ' (아직 입력된 게 없어서 0입니다 — 아래 펫 이해도 기여분에서 슬롯을 골라 입력하면 여기 자동 반영됩니다)'}.</div>
-    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 위 펫 이해도·영혼각인·마석 합계는 참고용이며 부족분 계산에 다시 더하지 않습니다.</div>` : ''}
-    ${tip ? `<div class="note" style="margin-top:0">${tip}</div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-      <div>
-        <div class="engrave-cat-label">펫 이해도 (5종족) — 슬롯별 참고 범위(실제 반영 값 아님, 참고용)</div>
-        ${petTableHtml}
-        ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
-      </div>
-      <div>
-        <div class="engrave-cat-label">마석 (무기/방어구)</div>
-        ${manaTableHtml(stoneRows.slice(0, 3))}
-        <div class="engrave-cat-label" style="margin-top:10px">영석 (악세서리)</div>
-        ${manaTableHtml(spiritRows.slice(0, 3))}
-      </div>
-    </div>
-    <details class="card" style="margin-top:12px;padding:10px 14px" open>
-      <summary style="cursor:pointer;color:var(--muted);font-size:13px">⑤ 부위별 마석/영석 수치 입력 — 입력하면 위 "마석/영석 합계"에 자동 반영됩니다${hasManual ? ' (③을 직접 입력했으므로 부족분엔 반영되지 않음)' : ''}</summary>
-      <div id="goalManaGrid" style="margin-top:10px"></div>
-    </details>`;
-
-  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
-}
-
-function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows) {
-  const box = $('goalManaGrid');
-  if (!box) return;
-  const bestFor = part => (stoneTypeFor(part) === '마석' ? stoneRows[0] : spiritRows[0]);
-
-  // 한 부위 안에서 최상급이 여러 칸 뜨는 건 기대하기 어려우니, 부위당 딱 1칸만 최고값이 뜨고
-  // 나머지 칸은 0이라고 보수적으로 잡는다("최대치 1개 · 나머지 최소 0개").
-  const updateHint = part => {
-    const hintEl = $('goalManaHint_' + part);
-    if (!hintEl) return;
-    const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
-    const best = bestFor(part);
-    if (!best) { hintEl.textContent = ''; return; }
-    const theoreticalMax = best.val;
-    const gap = theoreticalMax - (entry.value || 0);
-    hintEl.textContent = gap > 0
-      ? `${best.item} ${best.stage} 기준 이 부위 1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit} 가능(나머지 칸은 0으로 보수적으로 가정) · 지금보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
-      : `이 부위는 보수적 목표치(1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit})에 이미 도달했습니다`;
-  };
-
-  const updatePriority = remain => {
-    const el = $('goalManaPriority');
-    if (!el) return;
-    if (remain <= 0) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">이미 목표를 채웠습니다 — 더 스왑할 필요 없습니다.</div>`; return; }
-    const candidates = relevantParts.map(part => {
-      const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
-      const best = bestFor(part);
-      if (!best) return null;
-      const theoreticalMax = best.val;
-      const gap = theoreticalMax - (entry.value || 0);
-      return gap > 0 ? { part, gap, best } : null;
-    }).filter(Boolean).sort((a, b) => b.gap - a.gap);
-    if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">지금 입력된 부위들은 이미 이론상 최대치라, 이 스탯은 다른 부위·펫·영혼각인으로 더 채워야 합니다.</div>`; return; }
-    let acc = 0, picked = [];
-    for (const c of candidates) { if (acc >= remain) break; picked.push(c); acc += c.gap; }
-    el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}를 마석/영석 스왑으로 채우려면, 우선순위 순으로 <b>${picked.map(c => `${c.part}(${c.best.item} ${c.best.stage}, +${c.gap.toFixed(dp)}${unit})`).join(' → ')}</b>로 바꾸면 됩니다${acc < remain ? ' (그래도 부족하면 다른 부위도 추가로 필요)' : ''}.</div>`;
-  };
-
-  const updateSum = () => {
-    const sum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-    const total = hasManual ? manualValue : (petActualTotal + engraveVal + sum);
-    const remain = target - total;
-    const manaEl = $('goalMetricMana');
-    const totalEl = $('goalMetricTotal');
-    const remainEl = $('goalMetricRemain');
-    if (manaEl) manaEl.textContent = `${sum.toFixed(dp)}${unit}`;
-    if (totalEl) totalEl.textContent = `${total.toFixed(dp)}${unit}`;
-    if (remainEl) {
-      const remainBox = remainEl.closest('div[style*="border"]');
-      remainEl.textContent = remain > 0 ? `${remain.toFixed(dp)}${unit}` : `+${(-remain).toFixed(dp)}${unit}`;
-      const label = remainEl.parentElement.querySelector('div');
-      if (label) label.textContent = remain > 0 ? '부족분' : '달성!';
-      const color = remain > 0 ? 'var(--red)' : 'var(--gold)';
-      remainEl.style.color = color;
-      if (remainBox) remainBox.style.borderColor = color;
-    }
-    updatePriority(remain);
-  };
-  if (!relevantParts.length) { box.innerHTML = `<div class="odd-nick">이 스탯은 마석/영석 옵션이 없어서 입력할 부위가 없습니다.</div>`; return; }
-  box.innerHTML = `
-    <div class="cost-grid">
-      ${relevantParts.map(part => {
-        const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
-        return `
-        <div class="cost-cell">
-          <label>${part} (${stoneTypeFor(part)})</label>
-          <div style="display:flex;gap:4px">
-            <select class="goalManaGradeSel" data-part="${part}" style="width:70px">
-              <option value="유일" ${entry.grade === '유일' ? 'selected' : ''}>유일(4)</option>
-              <option value="영웅" ${entry.grade === '영웅' ? 'selected' : ''}>영웅(5)</option>
-            </select>
-            <input type="number" class="goalManaValInput" data-part="${part}" value="${entry.value || 0}" step="${sd.pct ? '0.1' : '1'}" style="width:70px">
-          </div>
-          <div id="goalManaHint_${part}" class="odd-nick" style="margin-top:3px;font-size:11px"></div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div id="goalManaPriority"></div>`;
-  relevantParts.forEach(part => {
-    const gradeSel = document.querySelector(`.goalManaGradeSel[data-part="${part}"]`);
-    const valInput = document.querySelector(`.goalManaValInput[data-part="${part}"]`);
-    gradeSel.addEventListener('change', () => {
-      goalManaEntries[part] = goalManaEntries[part] || { grade: '유일', value: 0 };
-      goalManaEntries[part].grade = gradeSel.value;
-      updateHint(part);
-      updateSum();
-    });
-    valInput.addEventListener('input', () => {
-      goalManaEntries[part] = goalManaEntries[part] || { grade: '유일', value: 0 };
-      goalManaEntries[part].value = parseFloat(valInput.value) || 0;
-      updateHint(part);
-      updateSum();
-    });
-    updateHint(part);
-  });
-  const initialSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-  const initialTotal = hasManual ? manualValue : (petActualTotal + engraveVal + initialSum);
-  updatePriority(target - initialTotal);
-}
-
-function renderGoalFinder() {
-  const sel = $('goalStat');
-  const prev = sel.value;
-  const shown = visibleStats();
-  sel.innerHTML = CATEGORIES.map(c => {
-    const opts = shown.filter(sd => sd.cat === c.key);
-    if (!opts.length) return '';
-    return `<optgroup label="${c.label}">${opts.map(sd => `<option value="${sd.key}">${sd.label}${sd.pct ? ' (%)' : ''}</option>`).join('')}</optgroup>`;
-  }).join('');
-  if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
-  renderGoalResult();
-}
-
 // ---------- 합산 & 요약 ----------
 function calc() {
   const shown = visibleStats();
@@ -801,14 +384,9 @@ function calc() {
 }
 
 $('showAllStatsChk').addEventListener('change', calc);
-$('goalStat').addEventListener('change', renderGoalResult);
-$('goalTarget').addEventListener('input', renderGoalResult);
-$('goalCurrentValue').addEventListener('input', renderGoalResult);
-$('goalCurrentEngrave').addEventListener('input', renderGoalResult);
 
 renderFocusPicker();
 renderTabs();
 renderPetRaceBlocks();
 renderGearParts();
-renderGoalFinder();
 calc();

@@ -13,6 +13,7 @@
     <a href="pet-calc.html">펫 이해도 계산기</a>
     <a href="manastone-calc.html">마석·영석 계산기</a>
     <a href="gear-budget.html" class="on">부위별 스탯 예상</a>
+    <a href="goal-calc.html">목표 스탯 계산기</a>
     <a href="odd-calc.html">오드→키나 계산기</a>
     <a href="checklist.html">숙제 체크리스트</a>
   </nav>
@@ -49,14 +50,9 @@
 
   <div id="modeTabs"></div>
 
-  <div class="card" style="margin-top:16px">
-    <h2>목표 수치 달성 경로 <span style="color:var(--muted);font-weight:400;font-size:12px">— 원하는 스탯을 얼마나, 어디서 챙길지</span></h2>
-    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르세요. ③에 내 캐릭터 현재 수치를 직접 입력하면 그 값을 그대로 기준으로 쓰고, 비워두면 아래 "펫 이해도 기여분"에 실제 입력한 값 + ④영혼각인 + ⑤마석/영석 입력을 자동으로 합산해서 씁니다.</div>
-    <div class="field"><label>① 계산할 스탯</label><select id="goalStat"></select></div>
-    <div class="field"><label>② 목표 수치</label><input type="number" id="goalTarget" value="6000" step="1"></div>
-    <div class="field"><label>③ 내 캐릭터 현재 수치 <span style="color:var(--muted);font-weight:400">(직접 입력 · 비워두면 자동 계산)</span></label><input type="number" id="goalCurrentValue" placeholder="비워두면 자동 계산" step="1"></div>
-    <div class="field"><label>④ 내가 챙긴 영혼각인 수치</label><input type="number" id="goalCurrentEngrave" value="0" step="1"></div>
-    <div id="goalResult" style="margin-top:10px"></div>
+  <div class="card" style="margin-top:16px;border-color:#25304a">
+    <h2>목표 스탯 계산기로 옮겼습니다</h2>
+    <div class="note" style="margin-top:0">특정 스탯 하나를 목표 수치까지 얼마나·어디서 채울지 계산하는 기능은 <a href="goal-calc.html" style="color:var(--gold)">목표 스탯 계산기</a> 페이지로 따로 뺐습니다. 이 페이지(부위별 스탯 예상)는 장비 전체를 한 번에 채웠을 때 스탯들이 얼마씩 나오는지 보는 용도로 쓰세요.</div>
   </div>
 
   <div class="card">
@@ -82,6 +78,7 @@
 </div>
 <script src="pet-data.js"></script>
 <script src="manastone-data.js"></script>
-<script src="gear-budget.js?v=20260827d"></script>
+<script src="gear-defs.js?v=20260827e"></script>
+<script src="gear-budget.js?v=20260827e"></script>
 </body>
 </html>
