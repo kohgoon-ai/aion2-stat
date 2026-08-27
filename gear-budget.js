@@ -238,6 +238,7 @@ function renderPetSection(containerId, race, state, selClass, cellPrefix) {
       state[s].idx = parseInt(sel.value, 10);
       renderPetValueCell(s, state, selClass, cellPrefix);
       calc();
+      if ($('goalStat')) renderGoalResult();
     });
     renderPetValueCell(s, state, selClass, cellPrefix);
   });
@@ -259,6 +260,7 @@ function renderPetValueCell(s, state, selClass, cellPrefix) {
     v = Math.max(range2.min, Math.min(range2.max, v));
     state[s].value = v;
     calc();
+    if ($('goalStat')) renderGoalResult();
   });
 }
 function renderPetRaceBlocks() {
@@ -483,6 +485,28 @@ function computeGoalPath(statKey) {
   return { race: PET_RACES.join('+'), petRows, petMaxTotal, petAvgTotal, stoneRows, spiritRows, noOptionRaces };
 }
 
+// 아래 "펫 이해도 기여분"에 종족별로 이미 입력해 둔 실제 값을 그대로 읽어서 합산한다 —
+// 평균으로 어림잡지 않고 실제로 뭘 챙겼다고 표시했는지를 쓰는 쪽이 더 정확하다.
+function computeActualPetTotal(statKey) {
+  let total = 0;
+  const byRace = {};
+  PET_RACES.forEach(race => {
+    const state = petStates[race];
+    let raceSum = 0;
+    PET_SLOTS.forEach(s => {
+      const idx = state[s].idx;
+      if (idx < 0) return;
+      const sel = document.querySelector(`.petSel_${race}[data-slot="${s}"]`);
+      const m = sel && sel._matches && sel._matches[idx];
+      if (!m || m.statKey !== statKey) return;
+      raceSum += state[s].value;
+    });
+    if (raceSum > 0) byRace[race] = raceSum;
+    total += raceSum;
+  });
+  return { total, byRace };
+}
+
 // 부위별로 이미 챙긴 마석/영석 수치를 참고용으로 수기 입력하는 선택 섹션 — 스탯을 바꾸면 초기화된다.
 let goalManaStatKey = null;
 let goalManaEntries = {}; // part -> { grade: '유일'|'영웅', value: number }
@@ -511,14 +535,15 @@ function renderGoalResult() {
   const sd = STAT_BY_KEY[statKey];
   const unit = sd.pct ? '%' : '';
   const dp = sd.pct ? 2 : 1;
-  const { petRows, petAvgTotal, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
+  const { petRows, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
+  const { total: petActualTotal, byRace: petActualByRace } = computeActualPetTotal(statKey);
 
   const relevantParts = EQUIP_SLOTS.filter(part => {
     const type = stoneTypeFor(part);
     return (type === '마석' && stoneRows.length) || (type === '영석' && spiritRows.length);
   });
   const manaEnteredSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-  const autoTotal = petAvgTotal + engraveVal + manaEnteredSum;
+  const autoTotal = petActualTotal + engraveVal + manaEnteredSum;
   const currentTotal = hasManual ? manualValue : autoTotal;
   const remain = target - currentTotal;
 
@@ -537,22 +562,17 @@ function renderGoalResult() {
   const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
   let tip = '';
   if (remain > 0 && bestMana) {
-    const sameTypeRows = bestMana.item.indexOf('마석') >= 0 ? stoneRows : spiritRows;
-    const lowerRow = sameTypeRows.find(r => r.val < bestMana.val);
-    const secondVal = lowerRow ? lowerRow.val : bestMana.val;
     const isStone = bestMana.item.indexOf('마석') >= 0;
-    const perPartCap = GRADE_MAX['영웅'];
     const totalPartsOfType = isStone ? (EQUIP_SLOTS.length - ACCESSORY_SLOTS.size) : ACCESSORY_SLOTS.size;
-    const slotCap = totalPartsOfType * perPartCap; // 이 스탯을 넣을 수 있는 부위(마석 8개/영석 6개) 전부에 최상급 등급 칸을 꽉 채웠을 때의 물리적 상한
-    const slotsNeeded = remain <= bestMana.val ? 1 : 1 + Math.ceil((remain - bestMana.val) / secondVal);
-    const restPhrase = lowerRow ? `나머지는 조금 더 현실적인 ${secondVal.toFixed(dp)}${unit}(${lowerRow.item} ${lowerRow.stage}) 기준` : `나머지도 같은 ${secondVal.toFixed(dp)}${unit} 기준(이보다 낮은 단계 데이터가 없습니다)`;
-    if (slotsNeeded > slotCap) {
-      const maxFromMana = slotCap <= 1 ? Math.min(remain, bestMana.val) : bestMana.val + (slotCap - 1) * secondVal;
+    // 한 부위 안에서 최상급이 여러 칸 뜨는 건 기대하기 어려우니, 부위당 딱 1칸만 최고값이 뜨고
+    // 나머지 칸은 0이라고 보수적으로 잡는다("최대치 1개 · 나머지 최소 0개").
+    const partsNeeded = Math.ceil(remain / bestMana.val);
+    if (partsNeeded > totalPartsOfType) {
+      const maxFromMana = totalPartsOfType * bestMana.val;
       const stillShort = remain - maxFromMana;
-      tip = `남은 ${remain.toFixed(dp)}${unit}를 채우려면 계산상 ${slotsNeeded}칸이 필요한데, ${isStone ? '마석' : '영석'}을 꽂을 수 있는 부위는 전체 <b>${totalPartsOfType}개(최대 ${slotCap}칸)</b>뿐이라 물리적으로 다 못 채웁니다. 그 부위 전부를 <b>1칸은 ${bestMana.item} ${bestMana.stage}</b>, <b>${restPhrase}</b>으로 꽉 채워도 최대 <b>${maxFromMana.toFixed(dp)}${unit}</b> 정도까지고, 나머지 <b>${stillShort.toFixed(dp)}${unit}</b>는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
+      tip = `남은 ${remain.toFixed(dp)}${unit}를 부위당 1칸(최고값)만 뜬다고 보수적으로 잡아도 <b>${partsNeeded}부위</b>가 필요한데, ${isStone ? '마석' : '영석'}을 꽂을 수 있는 부위는 전체 <b>${totalPartsOfType}개</b>뿐이라 다 못 채웁니다. 그 부위 전부에 <b>${bestMana.item} ${bestMana.stage}(칸당 ${bestMana.val.toFixed(dp)}${unit})</b>를 챙겨도 최대 <b>${maxFromMana.toFixed(dp)}${unit}</b> 정도까지고, 나머지 <b>${stillShort.toFixed(dp)}${unit}</b>는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
     } else {
-      const estParts = Math.max(1, Math.ceil(slotsNeeded / perPartCap));
-      tip = `남은 ${remain.toFixed(dp)}${unit}는 ${isStone ? '마석' : '영석'}으로 채운다고 하면, 최상급을 여러 칸 띄우는 건 현실적으로 어려우니 <b>1칸은 최대 ${bestMana.item} ${bestMana.stage}(${bestMana.val.toFixed(dp)}${unit})</b>, <b>${restPhrase}</b>으로 잡으면 총 <b>${slotsNeeded}칸</b>(부위 하나에 최대 ${perPartCap}칸이라 대략 <b>${estParts}부위</b>) 맞추면 됩니다.`;
+      tip = `남은 ${remain.toFixed(dp)}${unit}는 마석/영석으로 채운다고 하면, 한 부위에서 최상급이 여러 칸 뜨길 기대하기보다 <b>부위당 1칸만 최고값(${bestMana.item} ${bestMana.stage}, 칸당 ${bestMana.val.toFixed(dp)}${unit})이 뜨고 나머지 칸은 0</b>이라고 보수적으로 잡으면, 총 <b>${partsNeeded}부위</b>에서 이 스탯을 챙기면 됩니다.`;
     }
   } else if (remain > 0 && !bestMana) {
     tip = `마석/영석엔 이 스탯 옵션이 없어서, 나머지는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
@@ -561,17 +581,18 @@ function renderGoalResult() {
   box.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:4px 0 12px">
       ${goalMetricBox('goalMetricTarget', '목표', `${target.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricPet', '펫 이해도 평균 총합', `${petAvgTotal.toFixed(dp)}${unit}`)}
+      ${goalMetricBox('goalMetricPet', '펫 이해도 총합 (내 입력값)', `${petActualTotal.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricEngrave', '영혼각인', `${engraveVal.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricMana', '마석/영석 합계', `${manaEnteredSum.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricTotal', hasManual ? '현재 총합 (직접 입력)' : '현재 총합 (자동 계산)', `${currentTotal.toFixed(dp)}${unit}`, { color: 'var(--gold)' })}
       ${goalMetricBox('goalMetricRemain', remain > 0 ? '부족분' : '달성!', remain > 0 ? `${remain.toFixed(dp)}${unit}` : `+${(-remain).toFixed(dp)}${unit}`, { big: true, color: remain > 0 ? 'var(--red)' : 'var(--gold)', border: remain > 0 ? 'var(--red)' : 'var(--gold)' })}
     </div>
-    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 아래 영혼각인·마석 합계는 참고용이며 부족분 계산에 다시 더하지 않습니다.</div>` : ''}
+    <div class="odd-nick" style="margin-top:0">※ 펫 이해도 총합은 아래 "펫 이해도 기여분"에 종족별로 실제 입력한 값을 그대로 합산한 값입니다${Object.keys(petActualByRace).length ? ` — ${Object.entries(petActualByRace).map(([r, v]) => `${r} ${v.toFixed(dp)}${unit}`).join(', ')}` : ' (아직 입력된 게 없어서 0입니다 — 아래 펫 이해도 기여분에서 슬롯을 골라 입력하면 여기 자동 반영됩니다)'}.</div>
+    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 위 펫 이해도·영혼각인·마석 합계는 참고용이며 부족분 계산에 다시 더하지 않습니다.</div>` : ''}
     ${tip ? `<div class="note" style="margin-top:0">${tip}</div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
       <div>
-        <div class="engrave-cat-label">펫 이해도 (5종족 합산, 평균 기준 자동 계산) — 슬롯별 필요 수치 가이드</div>
+        <div class="engrave-cat-label">펫 이해도 (5종족) — 슬롯별 참고 범위(실제 반영 값 아님, 참고용)</div>
         ${petTableHtml}
         ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
       </div>
@@ -587,26 +608,27 @@ function renderGoalResult() {
       <div id="goalManaGrid" style="margin-top:10px"></div>
     </details>`;
 
-  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
+  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
 }
 
-function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows) {
+function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows) {
   const box = $('goalManaGrid');
   if (!box) return;
   const bestFor = part => (stoneTypeFor(part) === '마석' ? stoneRows[0] : spiritRows[0]);
 
+  // 한 부위 안에서 최상급이 여러 칸 뜨는 건 기대하기 어려우니, 부위당 딱 1칸만 최고값이 뜨고
+  // 나머지 칸은 0이라고 보수적으로 잡는다("최대치 1개 · 나머지 최소 0개").
   const updateHint = part => {
     const hintEl = $('goalManaHint_' + part);
     if (!hintEl) return;
     const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
     const best = bestFor(part);
     if (!best) { hintEl.textContent = ''; return; }
-    const slots = GRADE_MAX[entry.grade || '유일'];
-    const theoreticalMax = best.val * slots;
+    const theoreticalMax = best.val;
     const gap = theoreticalMax - (entry.value || 0);
     hintEl.textContent = gap > 0
-      ? `${best.item} ${best.stage} 기준 이 부위 최대 ${theoreticalMax.toFixed(dp)}${unit}(${slots}칸) 가능 · 지금보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
-      : `이 부위는 이론상 최대치(${theoreticalMax.toFixed(dp)}${unit})에 도달했습니다`;
+      ? `${best.item} ${best.stage} 기준 이 부위 1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit} 가능(나머지 칸은 0으로 보수적으로 가정) · 지금보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
+      : `이 부위는 보수적 목표치(1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit})에 이미 도달했습니다`;
   };
 
   const updatePriority = remain => {
@@ -617,8 +639,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvg
       const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
       const best = bestFor(part);
       if (!best) return null;
-      const slots = GRADE_MAX[entry.grade || '유일'];
-      const theoreticalMax = best.val * slots;
+      const theoreticalMax = best.val;
       const gap = theoreticalMax - (entry.value || 0);
       return gap > 0 ? { part, gap, best } : null;
     }).filter(Boolean).sort((a, b) => b.gap - a.gap);
@@ -630,7 +651,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvg
 
   const updateSum = () => {
     const sum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-    const total = hasManual ? manualValue : (petAvgTotal + engraveVal + sum);
+    const total = hasManual ? manualValue : (petActualTotal + engraveVal + sum);
     const remain = target - total;
     const manaEl = $('goalMetricMana');
     const totalEl = $('goalMetricTotal');
@@ -686,7 +707,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvg
     updateHint(part);
   });
   const initialSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
-  const initialTotal = hasManual ? manualValue : (petAvgTotal + engraveVal + initialSum);
+  const initialTotal = hasManual ? manualValue : (petActualTotal + engraveVal + initialSum);
   updatePriority(target - initialTotal);
 }
 
