@@ -211,7 +211,7 @@ function renderGearParts() {
     </div>
     <div class="gear-part-grid">
     ${EQUIP_SLOTS.map(part => `
-    <details class="card gear-part">
+    <details class="card gear-part" open>
       <summary>
         <span class="gear-part-name">${part}</span>
         <span class="gear-part-badge" id="partBadge-${part}">—</span>
