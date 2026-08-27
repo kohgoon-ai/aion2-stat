@@ -48,6 +48,14 @@
 
   <div id="modeTabs"></div>
 
+  <div class="card" style="margin-top:16px">
+    <h2>목표 수치 달성 경로 <span style="color:var(--muted);font-weight:400;font-size:12px">— 원하는 스탯을 얼마나, 어디서 챙길지</span></h2>
+    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르면 펫 이해도 슬롯별로 얼마까지 나오는지, 마석/영석 중 어떤 아이템·단계가 제일 높은지, 그걸로 목표까지 대략 몇 칸이 필요한지 보여줍니다. 아래 "펫 이해도 기여분"·부위별 카드에 실제로 반영하는 건 직접 골라야 합니다.</div>
+    <div class="field"><label>목표 스탯</label><select id="goalStat"></select></div>
+    <div class="field"><label>목표 수치</label><input type="number" id="goalTarget" value="6000" step="1"></div>
+    <div id="goalResult" style="margin-top:10px"></div>
+  </div>
+
   <div class="card">
     <h2>총합 요약 <span style="color:var(--muted);font-weight:400;font-size:12px">— 값이 있는 스탯만 표시</span></h2>
     <label class="show-all-toggle"><input type="checkbox" id="showAllStatsChk"> 0인 스탯도 전부 보기</label>

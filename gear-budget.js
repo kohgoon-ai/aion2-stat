@@ -167,6 +167,7 @@ function setMode(mode) {
   document.querySelectorAll('.tab-btn').forEach(b => b.setAttribute('aria-selected', b.id === 'tab-' + mode ? 'true' : 'false'));
   renderPetTable();
   renderGearParts();
+  renderGoalFinder();
   calc();
 }
 
@@ -188,6 +189,7 @@ function renderFocusPicker() {
       if (chk.checked) focusStats.add(chk.value); else focusStats.delete(chk.value);
       renderPetTable();
       renderGearParts();
+      renderGoalFinder();
       calc();
     });
   });
@@ -196,6 +198,7 @@ function renderFocusPicker() {
     renderFocusPicker();
     renderPetTable();
     renderGearParts();
+    renderGoalFinder();
     calc();
   });
 }
@@ -398,6 +401,95 @@ function renderEngraveGrid(part) {
   });
 }
 
+// ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
+function computeGoalPath(statKey) {
+  const race = $('petRace').value;
+  const petRows = [];
+  let petMaxTotal = 0;
+  PET_SLOTS.forEach(s => {
+    const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
+    if (!matches.length) return;
+    let best = null, bestMax = -Infinity;
+    matches.forEach(m => {
+      const r = parseRange(m.range);
+      if (r.max > bestMax) { bestMax = r.max; best = { grade: m.grade, range: m.range, max: r.max }; }
+    });
+    if (best) { petRows.push({ slot: s, grade: best.grade, range: best.range, max: best.max }); petMaxTotal += best.max; }
+  });
+
+  const manaOpts = MANA_OPTIONS.filter(o => o.statKey === statKey);
+  const stoneRows = manaOpts.filter(o => o.item.indexOf('마석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
+  const spiritRows = manaOpts.filter(o => o.item.indexOf('영석') >= 0).sort((a, b) => b.val - a.val).slice(0, 3);
+
+  return { race, petRows, petMaxTotal, stoneRows, spiritRows };
+}
+
+function renderGoalResult() {
+  const statKey = $('goalStat').value;
+  const target = parseFloat($('goalTarget').value) || 0;
+  const box = $('goalResult');
+  if (!statKey) { box.innerHTML = ''; return; }
+  const sd = STAT_BY_KEY[statKey];
+  const unit = sd.pct ? '%' : '';
+  const dp = sd.pct ? 2 : 1;
+  const { race, petRows, petMaxTotal, stoneRows, spiritRows } = computeGoalPath(statKey);
+  const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
+  const remain = target - petMaxTotal;
+
+  let suggestion;
+  if (petMaxTotal <= 0 && !bestMana) {
+    suggestion = `마석/영석·펫 이해도 데이터엔 이 스탯이 없습니다 — 영혼각인으로만 챙길 수 있는 스탯으로 보입니다(위 카드에서 부위별로 직접 입력).`;
+  } else if (target <= petMaxTotal) {
+    suggestion = `펫 이해도 슬롯만으로도 목표 ${target}${unit} 달성 가능합니다 (전 슬롯을 이 스탯으로 채우면 최대 ${petMaxTotal.toFixed(dp)}${unit}).`;
+  } else if (bestMana) {
+    const manaSlotsNeeded = Math.ceil(remain / bestMana.val);
+    const isStone = bestMana.item.indexOf('마석') >= 0;
+    const slotCap = (isStone ? (EQUIP_SLOTS.length - ACCESSORY_SLOTS.size) : ACCESSORY_SLOTS.size) * GRADE_MAX['영웅'];
+    const overCap = manaSlotsNeeded > slotCap;
+    suggestion = `펫 이해도 전 슬롯을 이 스탯으로 채워도 최대 ${petMaxTotal.toFixed(dp)}${unit}입니다. 부족한 ${remain.toFixed(dp)}${unit}는 <b>${bestMana.item} ${bestMana.stage}</b>(칸당 ${bestMana.val.toFixed(dp)}${unit}) 기준 약 <b>${manaSlotsNeeded}칸</b>이 더 필요합니다.` +
+      (overCap ? ` 다만 ${isStone ? '무기·방어구' : '악세서리'} 전체 칸 수는 최대 ${slotCap}칸뿐이라 이 스탯 하나만으로는 현실적으로 다 못 채웁니다 — 다른 스탯과 나눠 챙기거나 영혼각인 비중을 늘려야 합니다.` : ` 그래도 부족하면 영혼각인으로 나머지를 채우세요.`);
+  } else {
+    suggestion = `펫 이해도 최대 ${petMaxTotal.toFixed(dp)}${unit}로는 목표에 못 미치고, 마석/영석엔 이 스탯 옵션이 없습니다 — 나머지는 영혼각인으로 채워야 합니다.`;
+  }
+
+  const petTableHtml = petRows.length ? `
+    <table class="odd-table">
+      <thead><tr><th>펫 슬롯</th><th>등급</th><th>범위</th></tr></thead>
+      <tbody>${petRows.map(r => `<tr><td>${r.slot}번</td><td>${r.grade}</td><td>${r.range}</td></tr>`).join('')}</tbody>
+    </table>` : `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`;
+  const manaTableHtml = rows => rows.length
+    ? `<table class="odd-table"><thead><tr><th>아이템·단계</th><th>수치</th></tr></thead><tbody>${rows.map(o => `<tr><td>${o.item} ${o.stage}</td><td>${o.val.toFixed(dp)}${unit}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="odd-nick">해당 옵션 없음</div>`;
+
+  box.innerHTML = `
+    <div class="note" style="margin-top:0">${suggestion}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+      <div>
+        <div class="engrave-cat-label">펫 이해도 (종족: ${race}) — 슬롯당 최대</div>
+        ${petTableHtml}
+      </div>
+      <div>
+        <div class="engrave-cat-label">마석 (무기/방어구)</div>
+        ${manaTableHtml(stoneRows)}
+        <div class="engrave-cat-label" style="margin-top:10px">영석 (악세서리)</div>
+        ${manaTableHtml(spiritRows)}
+      </div>
+    </div>`;
+}
+
+function renderGoalFinder() {
+  const sel = $('goalStat');
+  const prev = sel.value;
+  const shown = visibleStats();
+  sel.innerHTML = CATEGORIES.map(c => {
+    const opts = shown.filter(sd => sd.cat === c.key);
+    if (!opts.length) return '';
+    return `<optgroup label="${c.label}">${opts.map(sd => `<option value="${sd.key}">${sd.label}${sd.pct ? ' (%)' : ''}</option>`).join('')}</optgroup>`;
+  }).join('');
+  if (prev && sel.querySelector(`option[value="${prev}"]`)) sel.value = prev;
+  renderGoalResult();
+}
+
 // ---------- 합산 & 요약 ----------
 function calc() {
   const shown = visibleStats();
@@ -464,11 +556,14 @@ function calc() {
     </table>`;
 }
 
-$('petRace').addEventListener('change', () => { renderPetTable(); calc(); });
+$('petRace').addEventListener('change', () => { renderPetTable(); renderGoalResult(); calc(); });
 $('showAllStatsChk').addEventListener('change', calc);
+$('goalStat').addEventListener('change', renderGoalResult);
+$('goalTarget').addEventListener('input', renderGoalResult);
 
 renderFocusPicker();
 renderTabs();
 renderPetTable();
 renderGearParts();
+renderGoalFinder();
 calc();
