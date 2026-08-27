@@ -88,6 +88,12 @@ const PET_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PET_GRADES_SHOWN = ['유일', '영웅'];
 
 let activeMode = 'pve'; // 'pve' | 'pvp'
+let focusStats = new Set(); // 관심 스탯으로 고른 키들 — 비어있으면 필터 없이 전체 표시
+function visibleStats() {
+  const modeStats = statsForMode(activeMode);
+  if (focusStats.size === 0) return modeStats;
+  return modeStats.filter(sd => focusStats.has(sd.key));
+}
 
 // ---------- 마석/영석: 매칭되는 (아이템,단계,스탯,수치) 전부를 한 번만 뽑아둔다 ----------
 const MANA_OPTIONS = [];
@@ -151,6 +157,36 @@ function setMode(mode) {
   calc();
 }
 
+// ---------- 관심 스탯 선택: 체크한 것만 남기고 펫/마석/영혼각인/요약에서 다 걸러낸다 ----------
+// PVE/PVP 탭을 바꿔도 체크 목록 자체는 안 바뀌게, 전체 STAT_DEFS 기준으로 그린다.
+function renderFocusPicker() {
+  const box = $('focusPicker');
+  box.innerHTML = `
+    <div class="targetCheckList" style="max-height:180px;min-width:100%">
+      ${CATEGORIES.map(c => `
+        <div class="cl-grade">${c.label}</div>
+        ${STAT_DEFS.filter(sd => sd.cat === c.key).map(sd => `
+          <label class="cl-item"><input type="checkbox" class="focusChk" value="${sd.key}" ${focusStats.has(sd.key) ? 'checked' : ''}> ${sd.label}${sd.mode !== 'general' ? ` (${sd.mode === 'pve' ? 'PVE' : 'PVP'} 전용)` : ''}</label>`).join('')}
+      `).join('')}
+    </div>
+    <button type="button" id="clearFocusBtn" style="margin-top:8px;background:#15151f;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit">전체 선택 해제 (다시 전체 표시)</button>`;
+  box.querySelectorAll('.focusChk').forEach(chk => {
+    chk.addEventListener('change', () => {
+      if (chk.checked) focusStats.add(chk.value); else focusStats.delete(chk.value);
+      renderPetTable();
+      renderGearParts();
+      calc();
+    });
+  });
+  $('clearFocusBtn').addEventListener('click', () => {
+    focusStats.clear();
+    renderFocusPicker();
+    renderPetTable();
+    renderGearParts();
+    calc();
+  });
+}
+
 // ---------- 펫 이해도 렌더 ----------
 function renderPetTable() {
   const race = $('petRace').value;
@@ -164,7 +200,7 @@ function renderPetTable() {
           <td id="petValCell${s}"></td>
         </tr>`).join('')}</tbody>
     </table>`;
-  const shown = new Set(statsForMode(activeMode).map(sd => sd.key));
+  const shown = new Set(visibleStats().map(sd => sd.key));
   PET_SLOTS.forEach(s => {
     const matches = petMatchesForSlot(race, s);
     const prevIdx = petState[s].idx;
@@ -275,7 +311,7 @@ function renderManaCountSel(part) {
     const partOptions = manaOptionsFor(part);
     // 새 칸을 추가할 때마다 매번 같은 옵션만 기본으로 잡으면 여러 칸이 겹쳐 보여 헷갈리므로,
     // 지금 탭(PVE/PVP)에서 이 부위가 실제로 쓸 수 있는(마석 또는 영석) 스탯들을 순환하며 기본값을 준다.
-    const availStats = statsForMode(activeMode).filter(sd => partOptions.some(o => o.statKey === sd.key));
+    const availStats = visibleStats().filter(sd => partOptions.some(o => o.statKey === sd.key));
     while (targets.length < n) {
       const sd = availStats[targets.length % availStats.length];
       const best = partOptions.find(o => o.statKey === sd.key);
@@ -291,7 +327,7 @@ function renderManaRows(part) {
   const box = $('manaRows-' + part);
   const targets = gearState[part].manaTargets;
   if (targets.length === 0) { box.innerHTML = ''; return; }
-  const shown = new Set(statsForMode(activeMode).map(sd => sd.key));
+  const shown = new Set(visibleStats().map(sd => sd.key));
   const partOptions = manaOptionsFor(part);
   const stoneType = stoneTypeFor(part);
   box.innerHTML = `
@@ -326,7 +362,7 @@ function renderManaRows(part) {
 // ---------- 영혼각인: 지금 탭에 해당하는 스탯 전부를 바로 입력 가능한 칸으로 ----------
 function renderEngraveGrid(part) {
   const box = $('engraveGrid-' + part);
-  const shown = statsForMode(activeMode);
+  const shown = visibleStats();
   box.innerHTML = CATEGORIES.map(c => {
     const opts = shown.filter(sd => sd.cat === c.key);
     if (!opts.length) return '';
@@ -351,7 +387,7 @@ function renderEngraveGrid(part) {
 
 // ---------- 합산 & 요약 ----------
 function calc() {
-  const shown = statsForMode(activeMode);
+  const shown = visibleStats();
   const petTotals = {}, manaTotals = {}, engraveTotals = {};
   shown.forEach(sd => { petTotals[sd.key] = 0; manaTotals[sd.key] = 0; engraveTotals[sd.key] = 0; });
   const shownKeys = new Set(shown.map(sd => sd.key));
@@ -417,6 +453,7 @@ function calc() {
 $('petRace').addEventListener('change', () => { renderPetTable(); calc(); });
 $('showAllStatsChk').addEventListener('change', calc);
 
+renderFocusPicker();
 renderTabs();
 renderPetTable();
 renderGearParts();
