@@ -135,5 +135,6 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px;lette
 .tab-btn[aria-selected="true"]{background:var(--card);border-color:var(--gold);border-bottom-color:var(--card);color:var(--gold)}
 .tab-btn:not([aria-selected="true"]):hover{color:var(--txt)}
 
-.gear-summary-sticky{position:sticky;top:10px;z-index:5;margin-top:0}
 .cat-row td{background:#15151f;color:var(--gold);font-size:11px;font-weight:700;letter-spacing:.5px;padding:6px 10px}
+.show-all-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px}
+.show-all-toggle input{cursor:pointer}

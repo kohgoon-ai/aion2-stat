@@ -367,12 +367,23 @@ function calc() {
     }
   });
 
+  const showAll = $('showAllStatsChk') && $('showAllStatsChk').checked;
+  const rowsByCategory = CATEGORIES.map(c => {
+    const catStats = shown.filter(sd => sd.cat === c.key).filter(sd => {
+      if (showAll) return true;
+      return petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key] > 0;
+    });
+    return { c, catStats };
+  }).filter(g => g.catStats.length);
+
+  if (rowsByCategory.length === 0) {
+    $('summaryTable').innerHTML = `<div class="odd-nick" style="padding:10px 0">아직 입력한 값이 없습니다 — 아래 "펫 이해도 기여분"과 각 장비 부위 카드에서 마석/영석·영혼각인 수치를 입력하면 여기 표시됩니다.</div>`;
+    return;
+  }
   $('summaryTable').innerHTML = `
     <table class="odd-table">
       <thead><tr><th>스탯</th><th>펫 이해도</th><th>마석/영석</th><th>영혼각인</th><th>총합</th></tr></thead>
-      <tbody>${CATEGORIES.map(c => {
-        const catStats = shown.filter(sd => sd.cat === c.key);
-        if (!catStats.length) return '';
+      <tbody>${rowsByCategory.map(({ c, catStats }) => {
         return `<tr class="cat-row"><td colspan="5">${c.label}</td></tr>` + catStats.map(sd => {
           const total = petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key];
           return `<tr>
@@ -388,6 +399,7 @@ function calc() {
 }
 
 $('petRace').addEventListener('change', () => { renderPetTable(); calc(); });
+$('showAllStatsChk').addEventListener('change', calc);
 
 renderTabs();
 renderPetTable();
