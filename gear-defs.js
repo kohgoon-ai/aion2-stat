@@ -26,12 +26,12 @@ const STAT_DEFS = [
   { key: 'smite', label: '강타', cat: 'offense', mode: 'general', names: ['강타'], pct: true },
   { key: 'backcrit', label: '후방 치명타', cat: 'offense', mode: 'general', names: ['후방 치명타'] },
   { key: 'frontcrit', label: '전방 치명타', cat: 'offense', mode: 'general', names: ['전방 치명타'] },
+  // "명중"은 상대 회피를 뚫는 공격 판정 수치라 방어가 아니라 공격 분류.
+  { key: 'hit', label: '명중', cat: 'offense', mode: 'general', names: ['추가 명중'] },
   { key: 'boss_atk', label: '보스 공격력', cat: 'offense', mode: 'pve', names: ['보스 공격력'] },
   { key: 'pve_atk', label: 'PVE 공격력', cat: 'offense', mode: 'pve', names: ['PVE 공격력'] },
   { key: 'pvp_atk', label: 'PVP 공격력', cat: 'offense', mode: 'pvp', names: ['PVP 공격력'] },
   { key: 'pvp_critrate', label: 'PVP 치명타', cat: 'offense', mode: 'pvp', names: ['PVP 치명타'] },
-  // "명중"은 상대 회피를 뚫는 공격 판정 수치라 방어가 아니라 공격 분류.
-  { key: 'hit', label: '명중', cat: 'offense', mode: 'general', names: ['추가 명중'] },
   { key: 'pvp_hit', label: 'PVP 명중', cat: 'offense', mode: 'pvp', names: ['PVP 명중'] },
 
   { key: 'def', label: '방어력', cat: 'defense', mode: 'general', names: ['방어력'] },
