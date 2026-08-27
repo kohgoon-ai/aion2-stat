@@ -401,12 +401,19 @@ function renderEngraveGrid(part) {
   });
 }
 
+// 펫 이해도 9슬롯은 3개씩 방어(1·4·7)/공격(2·5·8)/증폭·내성(3·6·9) 전용으로 나뉜다.
+// 3·6·9엔 막기·치명타처럼 다른 슬롯에도 공통으로 뜨는 옵션이 데이터상 같이 섞여 있지만,
+// 실제로는 증폭·내성류를 챙기는 슬롯이라 증폭·내성이 아닌 스탯을 계산할 땐 제외해야 한다.
+const PET_AMPRES_SLOTS = new Set([3, 6, 9]);
+
 // ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
 function computeGoalPath(statKey) {
+  const sd = STAT_BY_KEY[statKey];
   const race = $('petRace').value;
   const petRows = [];
   let petMaxTotal = 0;
   PET_SLOTS.forEach(s => {
+    if (!sd.pct && PET_AMPRES_SLOTS.has(s)) return;
     const matches = petMatchesForSlot(race, s).filter(m => m.statKey === statKey);
     if (!matches.length) return;
     let best = null, bestMax = -Infinity;
