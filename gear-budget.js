@@ -76,6 +76,9 @@ const STAT_OF = rawName => NAME_TO_STAT[rawName] || null;
 function statsForMode(mode) { return STAT_DEFS.filter(sd => sd.mode === 'general' || sd.mode === mode); }
 
 const EQUIP_SLOTS = ['무기', '투구', '상의', '하의', '장갑', '신발', '견갑', '망토', '목걸이', '반지1', '반지2', '귀걸이1', '귀걸이2', '브로치'];
+// 무기·방어구엔 마석만, 악세서리(목걸이·반지·귀걸이·브로치)엔 영석만 박을 수 있다.
+const ACCESSORY_SLOTS = new Set(['목걸이', '반지1', '반지2', '귀걸이1', '귀걸이2', '브로치']);
+const stoneTypeFor = part => (ACCESSORY_SLOTS.has(part) ? '영석' : '마석');
 const GRADE_MAX = { '유일': 4, '영웅': 5 };
 const PET_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const PET_GRADES_SHOWN = ['유일', '영웅'];
@@ -222,7 +225,7 @@ function renderGearParts() {
           <option value="영웅">영웅 (5칸)</option>
         </select>
       </div>
-      <div class="field"><label>마석/영석 사용 칸 수</label>
+      <div class="field"><label>${stoneTypeFor(part)} 사용 칸 수</label>
         <select class="manaCountSel" data-part="${part}"></select>
       </div>
       <div id="manaRows-${part}"></div>
@@ -251,6 +254,12 @@ function renderGearParts() {
   });
 }
 
+// 무기·방어구는 마석만, 악세서리는 영석만 — 부위별로 쓸 수 있는 MANA_OPTIONS만 걸러서 돌려준다.
+function manaOptionsFor(part) {
+  const stoneType = stoneTypeFor(part);
+  return MANA_OPTIONS.filter(o => o.item.indexOf(stoneType) >= 0);
+}
+
 function renderManaCountSel(part) {
   const max = GRADE_MAX[gearState[part].grade];
   const sel = document.querySelector(`.manaCountSel[data-part="${part}"]`);
@@ -259,13 +268,14 @@ function renderManaCountSel(part) {
   sel.onchange = () => {
     const n = parseInt(sel.value, 10);
     const targets = gearState[part].manaTargets;
+    const partOptions = manaOptionsFor(part);
     // 새 칸을 추가할 때마다 매번 같은 옵션만 기본으로 잡으면 여러 칸이 겹쳐 보여 헷갈리므로,
-    // 지금 탭(PVE/PVP)에서 실제로 마석에 존재하는 스탯들을 순환하며 서로 다른 기본값을 준다.
-    const availStats = statsForMode(activeMode).filter(sd => MANA_OPTIONS.some(o => o.statKey === sd.key));
+    // 지금 탭(PVE/PVP)에서 이 부위가 실제로 쓸 수 있는(마석 또는 영석) 스탯들을 순환하며 기본값을 준다.
+    const availStats = statsForMode(activeMode).filter(sd => partOptions.some(o => o.statKey === sd.key));
     while (targets.length < n) {
       const sd = availStats[targets.length % availStats.length];
-      const best = MANA_OPTIONS.find(o => o.statKey === sd.key);
-      targets.push({ idx: best ? best.idx : MANA_OPTIONS[0].idx });
+      const best = partOptions.find(o => o.statKey === sd.key);
+      targets.push({ idx: best ? best.idx : partOptions[0].idx });
     }
     targets.length = n;
     renderManaRows(part);
@@ -278,9 +288,11 @@ function renderManaRows(part) {
   const targets = gearState[part].manaTargets;
   if (targets.length === 0) { box.innerHTML = ''; return; }
   const shown = new Set(statsForMode(activeMode).map(sd => sd.key));
+  const partOptions = manaOptionsFor(part);
+  const stoneType = stoneTypeFor(part);
   box.innerHTML = `
     <table class="odd-table">
-      <thead><tr><th>#</th><th>마석/영석 · 스탯 (수치)</th></tr></thead>
+      <thead><tr><th>#</th><th>${stoneType} · 스탯 (수치)</th></tr></thead>
       <tbody>${targets.map((t, i) => `
         <tr><td>${i + 1}</td><td><select class="manaTargetSel" data-part="${part}" data-i="${i}"></select></td></tr>`).join('')}</tbody>
     </table>`;
@@ -290,13 +302,13 @@ function renderManaRows(part) {
       const catStats = STAT_DEFS.filter(sd => sd.cat === c.key && shown.has(sd.key));
       const rows = [];
       catStats.forEach(sd => {
-        MANA_OPTIONS.filter(o => o.statKey === sd.key).forEach(o => rows.push(o));
+        partOptions.filter(o => o.statKey === sd.key).forEach(o => rows.push(o));
       });
       if (!rows.length) return '';
       return `<optgroup label="${c.label}">${rows.map(o => `<option value="${o.idx}">${o.label}</option>`).join('')}</optgroup>`;
     }).join('');
     if (!sel.querySelector(`option[value="${t.idx}"]`)) {
-      const fallback = MANA_OPTIONS.find(o => shown.has(o.statKey));
+      const fallback = partOptions.find(o => shown.has(o.statKey));
       if (fallback) t.idx = fallback.idx;
     }
     sel.value = String(t.idx);
