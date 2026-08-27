@@ -176,9 +176,6 @@ function renderGoalResult() {
         return `<tr><td>${r.race}</td><td>${r.slot}번</td><td>${r.grade}</td><td>최소 ${r.min}${unit} 이상 · 평균 ${avg.toFixed(dp)}${unit} 이상 필요 (최대 ${r.max}${unit})</td></tr>`;
       }).join('')}</tbody>
     </table>` : `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`;
-  const manaTableHtml = rows => rows.length
-    ? `<table class="odd-table"><thead><tr><th>아이템·단계</th><th>수치</th></tr></thead><tbody>${rows.map(o => `<tr><td>${o.item} ${o.stage}</td><td>${o.val.toFixed(dp)}${unit}</td></tr>`).join('')}</tbody></table>`
-    : `<div class="odd-nick">해당 옵션 없음</div>`;
 
   const bestMana = [stoneRows[0], spiritRows[0]].filter(Boolean).sort((a, b) => b.val - a.val)[0];
   let tip = '';
@@ -199,35 +196,47 @@ function renderGoalResult() {
     tip = `마석/영석엔 이 스탯 옵션이 없어서, 나머지는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
   }
 
+  const bestStoneVal = stoneRows[0] ? stoneRows[0].val : null;
+  const bestSpiritVal = spiritRows[0] ? spiritRows[0].val : null;
+
   box.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin:4px 0 12px">
       ${goalMetricBox('goalMetricTarget', '목표', `${target.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricPet', '펫 이해도 총합 (내 입력값)', `${petActualTotal.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricEngrave', '영혼각인', `${engraveVal.toFixed(dp)}${unit}`)}
-      ${goalMetricBox('goalMetricMana', '마석/영석 합계', `${manaEnteredSum.toFixed(dp)}${unit}`)}
       ${goalMetricBox('goalMetricTotal', hasManual ? '현재 총합 (직접 입력)' : '현재 총합 (자동 계산)', `${currentTotal.toFixed(dp)}${unit}`, { color: 'var(--gold)' })}
       ${goalMetricBox('goalMetricRemain', remain > 0 ? '부족분' : '달성!', remain > 0 ? `${remain.toFixed(dp)}${unit}` : `+${(-remain).toFixed(dp)}${unit}`, { big: true, color: remain > 0 ? 'var(--red)' : 'var(--gold)', border: remain > 0 ? 'var(--red)' : 'var(--gold)' })}
     </div>
-    <div class="odd-nick" style="margin-top:0">※ 펫 이해도 총합은 아래 "펫 이해도 입력"에 종족별로 실제 입력한 값을 그대로 합산한 값입니다${Object.keys(petActualByRace).length ? ` — ${Object.entries(petActualByRace).map(([r, v]) => `${r} ${v.toFixed(dp)}${unit}`).join(', ')}` : ' (아직 입력된 게 없어서 0입니다 — 아래 펫 이해도 입력에서 슬롯을 골라 입력하면 여기 자동 반영됩니다)'}.</div>
-    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 위 펫 이해도·영혼각인·마석 합계는 참고용이며 부족분 계산에 다시 더하지 않습니다.</div>` : ''}
-    ${tip ? `<div class="note" style="margin-top:0">${tip}</div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-      <div>
-        <div class="engrave-cat-label">펫 이해도 (5종족) — 슬롯별 참고 범위(실제 반영 값 아님, 참고용)</div>
-        ${petTableHtml}
+    ${hasManual ? `<div class="odd-nick" style="margin-top:0">※ ③에 값을 직접 입력해서 그 수치(${manualValue.toFixed(dp)}${unit})를 그대로 기준으로 씁니다. 아래 펫 이해도·영혼각인·마석 합계는 참고용이며 부족분 계산엔 다시 더하지 않습니다.</div>` : ''}
+
+    <div class="card" style="margin-top:12px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="engrave-cat-label" style="margin:0">🐾 펫 이해도</div>
+        <div style="font-size:20px;font-weight:800;color:var(--txt)">${petActualTotal.toFixed(dp)}${unit}</div>
+      </div>
+      <div class="odd-nick" style="margin-top:6px">${Object.keys(petActualByRace).length ? Object.entries(petActualByRace).map(([r, v]) => `${r} ${v.toFixed(dp)}${unit}`).join(' · ') : '아직 입력된 게 없습니다 — 아래 "펫 이해도 입력"에서 종족별로 슬롯을 고르면 여기 자동 반영됩니다.'}</div>
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12px">슬롯별 참고 범위 보기(실제 반영 값 아님)</summary>
+        <div style="margin-top:6px">${petTableHtml}</div>
         ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
-      </div>
-      <div>
-        <div class="engrave-cat-label">마석 (무기/방어구)</div>
-        ${manaTableHtml(stoneRows.slice(0, 3))}
-        <div class="engrave-cat-label" style="margin-top:10px">영석 (악세서리)</div>
-        ${manaTableHtml(spiritRows.slice(0, 3))}
-      </div>
+      </details>
     </div>
-    <details class="card" style="margin-top:12px;padding:10px 14px" open>
-      <summary style="cursor:pointer;color:var(--muted);font-size:13px">⑤ 부위별 마석/영석 수치 입력 — 입력하면 위 "마석/영석 합계"에 자동 반영됩니다${hasManual ? ' (③을 직접 입력했으므로 부족분엔 반영되지 않음)' : ''}</summary>
+
+    <div class="card" style="margin-top:12px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="engrave-cat-label" style="margin:0">💎 마석/영석</div>
+        <div style="font-size:20px;font-weight:800;color:var(--txt)">${manaEnteredSum.toFixed(dp)}${unit}</div>
+      </div>
+      <div class="odd-nick" style="margin-top:6px">※ 아래 칸마다 <b>지금 그 부위에 이미 챙긴 수치</b>를 입력하세요. "+N" 배지는 <b>이 부위에서 1칸을 최고 등급 아이템으로 바꾸면(나머지 칸은 0으로 가정) 얼마나 더 늘릴 수 있는지</b>입니다.${bestStoneVal ? ` 마석 최고값: ${stoneRows[0].item} ${stoneRows[0].stage}(${bestStoneVal.toFixed(dp)}${unit}).` : ''}${bestSpiritVal ? ` 영석 최고값: ${spiritRows[0].item} ${spiritRows[0].stage}(${bestSpiritVal.toFixed(dp)}${unit}).` : ''}</div>
+      ${tip ? `<div class="note" style="margin-top:8px">${tip}</div>` : ''}
       <div id="goalManaGrid" style="margin-top:10px"></div>
-    </details>`;
+    </div>
+
+    <div class="card" style="margin-top:12px;padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div class="engrave-cat-label" style="margin:0">✒ 영혼각인</div>
+        <div style="font-size:20px;font-weight:800;color:var(--txt)">${engraveVal.toFixed(dp)}${unit}</div>
+      </div>
+      <div class="odd-nick" style="margin-top:6px">위 ④ 칸에 입력한 값이 그대로 반영됩니다. 부위별 데이터가 없어서 총합만 직접 입력합니다.</div>
+    </div>`;
 
   renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
 }
@@ -247,9 +256,10 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAct
     if (!best) { hintEl.textContent = ''; return; }
     const theoreticalMax = best.val;
     const gap = theoreticalMax - (entry.value || 0);
-    hintEl.textContent = gap > 0
-      ? `${best.item} ${best.stage} 기준 이 부위 1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit} 가능(나머지 칸은 0으로 보수적으로 가정) · 지금보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
-      : `이 부위는 보수적 목표치(1칸 최고값 ${theoreticalMax.toFixed(dp)}${unit})에 이미 도달했습니다`;
+    // 자세한 설명(왜 +N인지, 무슨 아이템 기준인지)은 위쪽 마석/영석 단락 안내문 한 곳에만 적어두고,
+    // 칸마다는 짧은 배지만 보여준다.
+    hintEl.textContent = gap > 0 ? `+${gap.toFixed(dp)}${unit} 더 가능` : `최대치 도달`;
+    hintEl.style.color = gap > 0 ? 'var(--gold)' : 'var(--muted)';
   };
 
   const updatePriority = remain => {
