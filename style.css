@@ -124,14 +124,11 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:30px;lette
 .gear-part[open] summary::before{content:'▾';color:var(--gold)}
 .gear-part-name{font-size:15px;font-weight:700;color:var(--gold);flex-shrink:0}
 .gear-part-badge{font-size:11px;color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gear-part>.field,.gear-part>.sect,.gear-part>[id^="manaRows-"],.gear-part>[id^="engraveRows-"],.gear-part>.addEngraveBtn{margin-left:20px;margin-right:20px}
+.gear-part>.field,.gear-part>.sect,.gear-part>[id^="manaRows-"],.gear-part>[id^="engraveGrid-"]{margin-left:20px;margin-right:20px}
 .gear-part>.sect{margin-top:14px}
-.gear-part>.addEngraveBtn{display:block;margin-top:8px;margin-bottom:20px;background:#15151f;border:1px dashed var(--line);color:var(--muted);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
-.gear-part>.addEngraveBtn:hover{border-color:var(--gold);color:var(--gold)}
-.engraveDelBtn{background:#20141a;border:1px solid #5a2530;color:var(--red);border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit}
-.engraveDelBtn:hover{background:#2a181f}
-.engraveValInput,.engraveStatSel{background:#12121c;border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:12.5px;padding:5px 8px;font-family:inherit}
-.engraveValInput:focus,.engraveStatSel:focus{outline:none;border-color:var(--gold)}
+.gear-part>[id^="engraveGrid-"]{margin-bottom:20px}
+.engrave-cat-label{font-size:10.5px;color:var(--gold);font-weight:700;letter-spacing:.5px;margin:12px 0 6px}
+.engrave-cat-label:first-child{margin-top:0}
 
 .tabbar{display:flex;gap:6px;margin-bottom:16px}
 .tab-btn{background:#15151f;border:1px solid var(--line);color:var(--muted);border-radius:10px 10px 0 0;padding:10px 22px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit}

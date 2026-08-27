@@ -121,7 +121,7 @@ function parseRange(rangeStr) {
 // ---------- 상태 (PVE/PVP 탭 전환과 무관하게 공유 — 같은 장비/펫 세팅을 다른 관점으로 볼 뿐) ----------
 const petState = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {});
 const gearState = EQUIP_SLOTS.reduce((acc, part) => {
-  acc[part] = { grade: '유일', manaTargets: [], engraveRows: [] }; // engraveRows: [{statKey, value}]
+  acc[part] = { grade: '유일', manaTargets: [], engrave: {} }; // engrave: { [statKey]: value }
   return acc;
 }, {});
 
@@ -226,9 +226,8 @@ function renderGearParts() {
         <select class="manaCountSel" data-part="${part}"></select>
       </div>
       <div id="manaRows-${part}"></div>
-      <div class="sect" style="margin-top:14px">영혼각인 (직접 입력 · 데이터 없음)</div>
-      <div id="engraveRows-${part}"></div>
-      <button type="button" class="addEngraveBtn" data-part="${part}">+ 스탯 추가</button>
+      <div class="sect" style="margin-top:14px">영혼각인 (직접 입력 · 데이터 없음 · 지금 탭에 해당하는 스탯만)</div>
+      <div id="engraveGrid-${part}"></div>
     </details>`).join('')}
     </div>`;
 
@@ -248,16 +247,7 @@ function renderGearParts() {
     });
     renderManaCountSel(part);
     renderManaRows(part);
-    renderEngraveRows(part);
-
-    document.querySelector(`.addEngraveBtn[data-part="${part}"]`).addEventListener('click', () => {
-      const opts = statsForMode(activeMode);
-      const used = new Set(gearState[part].engraveRows.map(r => r.statKey));
-      const next = opts.find(sd => !used.has(sd.key)) || opts[0];
-      gearState[part].engraveRows.push({ statKey: next.key, value: 0 });
-      renderEngraveRows(part);
-      calc();
-    });
+    renderEngraveGrid(part);
   });
 }
 
@@ -317,40 +307,27 @@ function renderManaRows(part) {
   });
 }
 
-// ---------- 영혼각인: 추가/삭제 가능한 행 ----------
-function renderEngraveRows(part) {
-  const box = $('engraveRows-' + part);
-  const rows = gearState[part].engraveRows;
+// ---------- 영혼각인: 지금 탭에 해당하는 스탯 전부를 바로 입력 가능한 칸으로 ----------
+function renderEngraveGrid(part) {
+  const box = $('engraveGrid-' + part);
   const shown = statsForMode(activeMode);
-  const shownKeys = new Set(shown.map(sd => sd.key));
-  // 탭이 바뀌어 지금 목록에 없는(다른 모드 전용) 스탯 행은 화면엔 숨기되 값은 보존한다(state는 안 지움).
-  if (rows.length === 0) { box.innerHTML = '<div class="odd-nick" style="padding:4px 0">추가된 영혼각인 스탯 없음</div>'; return; }
-  box.innerHTML = `
-    <table class="odd-table">
-      <thead><tr><th>스탯</th><th>수치</th><th></th></tr></thead>
-      <tbody>${rows.map((r, i) => {
-        if (!shownKeys.has(r.statKey)) return `<tr data-hidden="1" style="display:none"></tr>`;
-        return `<tr>
-          <td><select class="engraveStatSel" data-part="${part}" data-i="${i}"></select></td>
-          <td><input type="number" class="engraveValInput" data-part="${part}" data-i="${i}" value="${r.value}" step="1" style="width:80px"></td>
-          <td><button type="button" class="engraveDelBtn" data-part="${part}" data-i="${i}">삭제</button></td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>`;
-  rows.forEach((r, i) => {
-    if (!shownKeys.has(r.statKey)) return;
-    const statSel = document.querySelector(`.engraveStatSel[data-part="${part}"][data-i="${i}"]`);
-    statSel.innerHTML = CATEGORIES.map(c => {
-      const opts = shown.filter(sd => sd.cat === c.key);
-      if (!opts.length) return '';
-      return `<optgroup label="${c.label}">${opts.map(sd => `<option value="${sd.key}" ${sd.key === r.statKey ? 'selected' : ''}>${sd.label}</option>`).join('')}</optgroup>`;
-    }).join('');
-    statSel.addEventListener('change', () => { r.statKey = statSel.value; calc(); });
-    const valInput = document.querySelector(`.engraveValInput[data-part="${part}"][data-i="${i}"]`);
-    valInput.addEventListener('input', () => { r.value = parseFloat(valInput.value) || 0; calc(); });
-    document.querySelector(`.engraveDelBtn[data-part="${part}"][data-i="${i}"]`).addEventListener('click', () => {
-      gearState[part].engraveRows.splice(i, 1);
-      renderEngraveRows(part);
+  box.innerHTML = CATEGORIES.map(c => {
+    const opts = shown.filter(sd => sd.cat === c.key);
+    if (!opts.length) return '';
+    return `
+      <div class="engrave-cat-label">${c.label}</div>
+      <div class="cost-grid">
+        ${opts.map(sd => `
+          <div class="cost-cell">
+            <label>${sd.label}</label>
+            <input type="number" class="engraveInput" data-part="${part}" data-stat="${sd.key}" value="${gearState[part].engrave[sd.key] || 0}" step="1">
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+  shown.forEach(sd => {
+    const inp = document.querySelector(`.engraveInput[data-part="${part}"][data-stat="${sd.key}"]`);
+    inp.addEventListener('input', () => {
+      gearState[part].engrave[sd.key] = parseFloat(inp.value) || 0;
       calc();
     });
   });
@@ -378,13 +355,15 @@ function calc() {
       const o = MANA_OPTIONS[t.idx];
       if (o && shownKeys.has(o.statKey)) { manaTotals[o.statKey] += o.val; manaSum += o.val; }
     });
-    gearState[part].engraveRows.forEach(r => {
-      if (shownKeys.has(r.statKey)) { engraveTotals[r.statKey] += r.value || 0; engraveSum += r.value || 0; }
+    let engraveN = 0;
+    Object.keys(gearState[part].engrave).forEach(key => {
+      const v = gearState[part].engrave[key] || 0;
+      if (v && shownKeys.has(key)) { engraveTotals[key] += v; engraveSum += v; engraveN++; }
     });
     const badge = $('partBadge-' + part);
     if (badge) {
       const manaN = gearState[part].manaTargets.length;
-      badge.textContent = `${gearState[part].grade} · 마석 ${manaN}칸(${manaSum.toFixed(0)}) · 각인 ${gearState[part].engraveRows.length}개(${engraveSum.toFixed(0)})`;
+      badge.textContent = `${gearState[part].grade} · 마석 ${manaN}칸(${manaSum.toFixed(0)}) · 각인 ${engraveN}개(${engraveSum.toFixed(0)})`;
     }
   });
 
