@@ -23,38 +23,27 @@
 
   <div class="disclaimer">
     ⚠ 마석/영석·펫 이해도 수치는 <b>NC 공식 확률정보</b> 원문 표 기반(다른 계산기 페이지와 동일 출처)입니다.<br>
-    <span class="disclaimer-note">* <b>펫 이해도 총합은 아래에서 종족별로 실제 입력한 값</b>을 그대로 합산합니다 — 평균이나 최댓값을 가정하지 않습니다.<br>
+    <span class="disclaimer-note">* <b>펫 이해도·영혼각인은 지금 캐릭터에 실제로 챙긴 총합을 직접 입력</b>하는 방식입니다 — 평균이나 최댓값을 가정하지 않습니다. 펫 이해도 슬롯별로 이 스탯이 어느 범위까지 나오는지는 아래 "펫 이해도" 단락에서 참고용으로 볼 수 있습니다.<br>
     * <b>마석/영석 부족분 가이드는 "부위당 1칸만 최고값이 뜨고 나머지 칸은 0"</b>이라는 보수적 가정으로 계산합니다 — 한 부위 안에서 최상급이 여러 칸 뜨는 걸 기대하기 어렵기 때문입니다.<br>
-    * <b>영혼각인은 부위별 수치 데이터를 구하지 못해</b> 총합을 직접 입력하는 방식입니다.<br>
     * 마석/영석 원문 표는 증폭·저항류도 "%" 없이 raw 수치로만 나와 있어서, 이 사이트 다른 페이지(스탯 계산기)에서 쓰는 <b>"raw 100 ≈ +1.2%p" 환산(사용자 실측 제보 기준, 공식 수치 아님)</b>을 그대로 적용합니다.</span>
   </div>
 
   <div class="card" style="margin-top:16px">
     <h2>목표 수치 달성 경로 <span style="color:var(--muted);font-weight:400;font-size:12px">— 원하는 스탯을 얼마나, 어디서 챙길지</span></h2>
-    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르세요. ③에 내 캐릭터 현재 수치를 직접 입력하면 그 값을 그대로 기준으로 쓰고, 비워두면 아래 "펫 이해도 입력"에 실제 입력한 값 + ④영혼각인 + ⑤마석/영석 입력을 자동으로 합산해서 씁니다.</div>
+    <div class="note" style="margin-top:0">스탯 하나와 목표 수치를 고르세요. ③에 내 캐릭터 현재 수치를 직접 입력하면 그 값을 그대로 기준으로 쓰고, 비워두면 ④펫 이해도 + ⑤영혼각인 + ⑥마석/영석 입력을 자동으로 합산해서 씁니다.</div>
     <div class="field"><label>① 계산할 스탯</label><select id="goalStat"></select></div>
     <div class="field"><label>② 목표 수치</label><input type="number" id="goalTarget" value="6000" step="1"></div>
     <div class="field"><label>③ 내 캐릭터 현재 수치 <span style="color:var(--muted);font-weight:400">(직접 입력 · 비워두면 자동 계산)</span></label><input type="number" id="goalCurrentValue" placeholder="비워두면 자동 계산" step="1"></div>
-    <div class="field"><label>④ 내가 챙긴 영혼각인 수치</label><input type="number" id="goalCurrentEngrave" value="0" step="1"></div>
+    <div class="field"><label>④ 지금 펫 이해도로 챙긴 수치</label><input type="number" id="goalPetValue" value="0" step="1"></div>
+    <div class="field"><label>⑤ 지금 영혼각인으로 챙긴 수치</label><input type="number" id="goalCurrentEngrave" value="0" step="1"></div>
     <div id="goalResult" style="margin-top:10px"></div>
-  </div>
-
-  <div class="card" style="margin-top:16px">
-    <h2>펫 이해도 입력</h2>
-    <div class="note" style="margin-top:0">종족 이해도는 "데리고 다니는 펫"이 아니라 <b>종족별로 따로 쌓이는 적용 수치</b>라, 지성·야성·자연·변형·특수 <b>5개 종족이 전부 동시에 적용</b>됩니다. 위 계산할 스탯을 챙길 수 있는 슬롯을 종족마다 골라서 입력하면 위 "목표 수치 달성 경로"에 자동 합산됩니다.</div>
-    <div class="gear-part-toolbar" style="margin-top:10px">
-      <button type="button" id="petExpandAllBtn">전체 펼치기</button>
-      <button type="button" id="petCollapseAllBtn">전체 접기</button>
-    </div>
-    <div id="petRaceBlocks"></div>
-    <div class="note">※ 슬롯 하나엔 실제로 옵션 하나만 붙습니다 — 목록은 <b>유일·영웅 등급 옵션 전부</b>를 카테고리별로 보여줍니다. 슬롯마다 뭘 챙겼다고 가정할지 하나 고르고, 그 옵션의 수치 범위 안에서 얼마를 얻었다고 볼지 입력하세요.</div>
   </div>
 
   <footer>비공식 팬메이드 계산기 · 정확도는 100% 보장되지 않습니다</footer>
 </div>
 <script src="pet-data.js"></script>
 <script src="manastone-data.js"></script>
-<script src="gear-defs.js?v=20260827g"></script>
-<script src="goal-calc.js?v=20260827g"></script>
+<script src="gear-defs.js?v=20260827h"></script>
+<script src="goal-calc.js?v=20260827h"></script>
 </body>
 </html>

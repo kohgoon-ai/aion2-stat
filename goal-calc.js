@@ -2,79 +2,9 @@ const $ = id => document.getElementById(id);
 
 // 스탯 카탈로그·마석/영석 옵션·펫 옵션 조회 함수는 gear-defs.js(공용) 참고.
 // 이 페이지는 스탯 하나만 다루므로 PVE/PVP 탭·관심 스탯 필터 없이 STAT_DEFS 전체를 그대로 쓴다.
-
-// ---------- 상태: 5개 종족 이해도가 전부 동시에 적용되므로 종족별로 독립된 9슬롯 상태를 갖는다 ----------
-const petStates = {};
-PET_RACES.forEach(race => { petStates[race] = PET_SLOTS.reduce((acc, s) => { acc[s] = { idx: -1, value: 0 }; return acc; }, {}); });
-
-// ---------- 펫 이해도 렌더 ----------
-function renderPetSection(containerId, race, state, selClass, cellPrefix) {
-  $(containerId).innerHTML = `
-    <table class="odd-table">
-      <thead><tr><th>슬롯</th><th>챙길 스탯 옵션</th><th>수치</th></tr></thead>
-      <tbody>${PET_SLOTS.map(s => `
-        <tr>
-          <td>${s}번</td>
-          <td><select class="${selClass}" data-slot="${s}"></select></td>
-          <td id="${cellPrefix}${s}"></td>
-        </tr>`).join('')}</tbody>
-    </table>`;
-  PET_SLOTS.forEach(s => {
-    const matches = petMatchesForSlot(race, s);
-    state[s].idx = -1;
-    const sel = document.querySelector(`.${selClass}[data-slot="${s}"]`);
-    const tagged = matches.map((m, i) => ({ ...m, i }));
-    const relevant = tagged.filter(m => m.statKey);
-    const other = tagged.filter(m => !m.statKey);
-    const byCat = {};
-    relevant.forEach(m => { const cat = STAT_BY_KEY[m.statKey].cat; (byCat[cat] = byCat[cat] || []).push(m); });
-    const optHtml = m => `<option value="${m.i}">[${m.grade}] ${m.stat} (${m.range})</option>`;
-    sel.innerHTML = `<option value="-1">— 선택 안함 —</option>` +
-      CATEGORIES.filter(c => byCat[c.key] && byCat[c.key].length).map(c => `<optgroup label="${c.label}">${byCat[c.key].map(optHtml).join('')}</optgroup>`).join('') +
-      (other.length ? `<optgroup label="기타 옵션">${other.map(optHtml).join('')}</optgroup>` : '');
-    sel._matches = matches;
-    sel.addEventListener('change', () => {
-      state[s].idx = parseInt(sel.value, 10);
-      renderPetValueCell(s, state, selClass, cellPrefix);
-      renderGoalResult();
-    });
-    renderPetValueCell(s, state, selClass, cellPrefix);
-  });
-}
-function renderPetValueCell(s, state, selClass, cellPrefix) {
-  const cell = $(cellPrefix + s);
-  const sel = document.querySelector(`.${selClass}[data-slot="${s}"]`);
-  const idx = state[s].idx;
-  if (idx < 0 || !sel._matches[idx]) { cell.innerHTML = '—'; return; }
-  const m = sel._matches[idx];
-  const range = parseRange(m.range);
-  if (state[s].value === 0 || state[s].value < range.min || state[s].value > range.max) {
-    state[s].value = range.max;
-  }
-  cell.innerHTML = `<input type="number" class="petValInput" data-slot="${s}" value="${state[s].value}" min="${range.min}" max="${range.max}" step="${range.isPercent ? '0.1' : '1'}" style="width:70px"> <span class="odd-nick">(${m.range})</span>`;
-  cell.querySelector('.petValInput').addEventListener('input', e => {
-    const range2 = parseRange(sel._matches[idx].range);
-    let v = parseFloat(e.target.value) || 0;
-    v = Math.max(range2.min, Math.min(range2.max, v));
-    state[s].value = v;
-    renderGoalResult();
-  });
-}
-function renderPetRaceBlocks() {
-  $('petRaceBlocks').innerHTML = `
-    <div class="gear-part-grid">
-    ${PET_RACES.map(race => `
-    <details class="card gear-part" open>
-      <summary><span class="gear-part-name">${race}</span></summary>
-      <div id="petTable_${race}" style="overflow-x:auto"></div>
-    </details>`).join('')}
-    </div>`;
-  $('petExpandAllBtn').addEventListener('click', () => document.querySelectorAll('#petRaceBlocks .gear-part').forEach(d => { d.open = true; }));
-  $('petCollapseAllBtn').addEventListener('click', () => document.querySelectorAll('#petRaceBlocks .gear-part').forEach(d => { d.open = false; }));
-  PET_RACES.forEach(race => {
-    renderPetSection(`petTable_${race}`, race, petStates[race], `petSel_${race}`, `petVal_${race}_`);
-  });
-}
+// 펫 이해도는 "챙길 옵션을 골라 범위 안에서 값을 가정"하는 방식이 아니라, 지금 실제로
+// 캐릭터에 붙어 있는 총합을 ④에 직접 입력받는다(영혼각인과 동일한 방식) — 슬롯별 참고
+// 범위는 computeGoalPath()가 계산해서 "얼마나 더 나올 수 있는지" 참고용으로만 보여준다.
 
 // ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
 function computeGoalPath(statKey) {
@@ -106,28 +36,6 @@ function computeGoalPath(statKey) {
   return { petRows, petMaxTotal, stoneRows, spiritRows, noOptionRaces };
 }
 
-// 위 "펫 이해도 입력"에 종족별로 이미 입력해 둔 실제 값을 그대로 읽어서 합산한다 —
-// 평균으로 어림잡지 않고 실제로 뭘 챙겼다고 표시했는지를 쓰는 쪽이 더 정확하다.
-function computeActualPetTotal(statKey) {
-  let total = 0;
-  const byRace = {};
-  PET_RACES.forEach(race => {
-    const state = petStates[race];
-    let raceSum = 0;
-    PET_SLOTS.forEach(s => {
-      const idx = state[s].idx;
-      if (idx < 0) return;
-      const sel = document.querySelector(`.petSel_${race}[data-slot="${s}"]`);
-      const m = sel && sel._matches && sel._matches[idx];
-      if (!m || m.statKey !== statKey) return;
-      raceSum += state[s].value;
-    });
-    if (raceSum > 0) byRace[race] = raceSum;
-    total += raceSum;
-  });
-  return { total, byRace };
-}
-
 // 부위별로 이미 챙긴 마석/영석 수치를 참고용으로 수기 입력하는 선택 섹션 — 스탯을 바꾸면 초기화된다.
 let goalManaStatKey = null;
 let goalManaEntries = {}; // part -> { grade: '유일'|'영웅', value: number }
@@ -157,7 +65,7 @@ function renderGoalResult() {
   const unit = sd.pct ? '%' : '';
   const dp = sd.pct ? 2 : 1;
   const { petRows, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
-  const { total: petActualTotal, byRace: petActualByRace } = computeActualPetTotal(statKey);
+  const petActualTotal = parseFloat($('goalPetValue').value) || 0;
 
   const relevantParts = EQUIP_SLOTS.filter(part => {
     const type = stoneTypeFor(part);
@@ -212,9 +120,9 @@ function renderGoalResult() {
         <div class="engrave-cat-label" style="margin:0">🐾 펫 이해도</div>
         <div style="font-size:20px;font-weight:800;color:var(--txt)">${petActualTotal.toFixed(dp)}${unit}</div>
       </div>
-      <div class="odd-nick" style="margin-top:6px">${Object.keys(petActualByRace).length ? Object.entries(petActualByRace).map(([r, v]) => `${r} ${v.toFixed(dp)}${unit}`).join(' · ') : '아직 입력된 게 없습니다 — 아래 "펫 이해도 입력"에서 종족별로 슬롯을 고르면 여기 자동 반영됩니다.'}</div>
+      <div class="odd-nick" style="margin-top:6px">위 ④ 칸에 입력한 값이 그대로 반영됩니다 — 지금 캐릭터에 실제로 붙어 있는 펫 이해도 총합을 입력하세요.</div>
       <details style="margin-top:8px">
-        <summary style="cursor:pointer;color:var(--muted);font-size:12px">슬롯별 참고 범위 보기(실제 반영 값 아님)</summary>
+        <summary style="cursor:pointer;color:var(--muted);font-size:12px">슬롯별 참고 범위 보기 — 종족·슬롯마다 이 스탯이 어느 범위까지 나오는지(실제 반영 값 아님)</summary>
         <div style="margin-top:6px">${petTableHtml}</div>
         ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 빠졌습니다.</div>` : ''}
       </details>
@@ -355,7 +263,7 @@ function renderGoalFinder() {
 $('goalStat').addEventListener('change', renderGoalResult);
 $('goalTarget').addEventListener('input', renderGoalResult);
 $('goalCurrentValue').addEventListener('input', renderGoalResult);
+$('goalPetValue').addEventListener('input', renderGoalResult);
 $('goalCurrentEngrave').addEventListener('input', renderGoalResult);
 
-renderPetRaceBlocks();
 renderGoalFinder();
