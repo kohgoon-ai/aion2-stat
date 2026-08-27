@@ -541,11 +541,19 @@ function renderGoalResult() {
     const lowerRow = sameTypeRows.find(r => r.val < bestMana.val);
     const secondVal = lowerRow ? lowerRow.val : bestMana.val;
     const isStone = bestMana.item.indexOf('마석') >= 0;
-    const slots = remain <= bestMana.val ? 1 : 1 + Math.ceil((remain - bestMana.val) / secondVal);
     const perPartCap = GRADE_MAX['영웅'];
-    const estParts = Math.max(1, Math.ceil(slots / perPartCap));
+    const totalPartsOfType = isStone ? (EQUIP_SLOTS.length - ACCESSORY_SLOTS.size) : ACCESSORY_SLOTS.size;
+    const slotCap = totalPartsOfType * perPartCap; // 이 스탯을 넣을 수 있는 부위(마석 8개/영석 6개) 전부에 최상급 등급 칸을 꽉 채웠을 때의 물리적 상한
+    const slotsNeeded = remain <= bestMana.val ? 1 : 1 + Math.ceil((remain - bestMana.val) / secondVal);
     const restPhrase = lowerRow ? `나머지는 조금 더 현실적인 ${secondVal.toFixed(dp)}${unit}(${lowerRow.item} ${lowerRow.stage}) 기준` : `나머지도 같은 ${secondVal.toFixed(dp)}${unit} 기준(이보다 낮은 단계 데이터가 없습니다)`;
-    tip = `남은 ${remain.toFixed(dp)}${unit}는 ${isStone ? '마석' : '영석'}으로 채운다고 하면, 최상급을 여러 칸 띄우는 건 현실적으로 어려우니 <b>1칸은 최대 ${bestMana.item} ${bestMana.stage}(${bestMana.val.toFixed(dp)}${unit})</b>, <b>${restPhrase}</b>으로 잡으면 총 <b>${slots}칸</b>(부위 하나에 최대 ${perPartCap}칸이라 대략 <b>${estParts}부위</b>) 맞추면 됩니다.`;
+    if (slotsNeeded > slotCap) {
+      const maxFromMana = slotCap <= 1 ? Math.min(remain, bestMana.val) : bestMana.val + (slotCap - 1) * secondVal;
+      const stillShort = remain - maxFromMana;
+      tip = `남은 ${remain.toFixed(dp)}${unit}를 채우려면 계산상 ${slotsNeeded}칸이 필요한데, ${isStone ? '마석' : '영석'}을 꽂을 수 있는 부위는 전체 <b>${totalPartsOfType}개(최대 ${slotCap}칸)</b>뿐이라 물리적으로 다 못 채웁니다. 그 부위 전부를 <b>1칸은 ${bestMana.item} ${bestMana.stage}</b>, <b>${restPhrase}</b>으로 꽉 채워도 최대 <b>${maxFromMana.toFixed(dp)}${unit}</b> 정도까지고, 나머지 <b>${stillShort.toFixed(dp)}${unit}</b>는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
+    } else {
+      const estParts = Math.max(1, Math.ceil(slotsNeeded / perPartCap));
+      tip = `남은 ${remain.toFixed(dp)}${unit}는 ${isStone ? '마석' : '영석'}으로 채운다고 하면, 최상급을 여러 칸 띄우는 건 현실적으로 어려우니 <b>1칸은 최대 ${bestMana.item} ${bestMana.stage}(${bestMana.val.toFixed(dp)}${unit})</b>, <b>${restPhrase}</b>으로 잡으면 총 <b>${slotsNeeded}칸</b>(부위 하나에 최대 ${perPartCap}칸이라 대략 <b>${estParts}부위</b>) 맞추면 됩니다.`;
+    }
   } else if (remain > 0 && !bestMana) {
     tip = `마석/영석엔 이 스탯 옵션이 없어서, 나머지는 펫 이해도를 더 챙기거나 영혼각인으로 채워야 합니다.`;
   }
