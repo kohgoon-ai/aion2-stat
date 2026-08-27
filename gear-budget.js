@@ -2,13 +2,17 @@ const $ = id => document.getElementById(id);
 
 // 6개 방어 스탯 — 이름에 이 문자열이 들어간 옵션만 각 스탯으로 인정한다.
 // "치명타 저항"은 공백 포함으로 매칭해야 "치명타"(치명타 확률)와 안 섞인다.
+// "PVP 회피/명중/막기/치명타 저항"은 일반 버전과는 별개로 PVP 전투에서만 적용되는 다른 스탯이라
+// 여기서 제외한다 — 안 걸러내면 마석 목록에서 일반 버전이랑 PVP 버전이 같은 통계로 합산돼버려서
+// 총합이 실제보다 부풀려지는 계산 오류가 생긴다.
+const isPvpStat = s => s.indexOf('PVP') >= 0;
 const STATS = [
-  { key: 'iron', label: '철벽', match: s => s.indexOf('철벽') >= 0 },
-  { key: 'regen', label: '재생', match: s => s.indexOf('재생') >= 0 },
-  { key: 'block', label: '막기', match: s => s.indexOf('막기') >= 0 },
-  { key: 'evade', label: '회피', match: s => s.indexOf('회피') >= 0 },
-  { key: 'hit', label: '명중', match: s => s.indexOf('명중') >= 0 },
-  { key: 'critres', label: '치명타 저항', match: s => s.indexOf('치명타 저항') >= 0 },
+  { key: 'iron', label: '철벽', match: s => !isPvpStat(s) && s.indexOf('철벽') >= 0 },
+  { key: 'regen', label: '재생', match: s => !isPvpStat(s) && s.indexOf('재생') >= 0 },
+  { key: 'block', label: '막기', match: s => !isPvpStat(s) && s.indexOf('막기') >= 0 },
+  { key: 'evade', label: '회피', match: s => !isPvpStat(s) && s.indexOf('회피') >= 0 },
+  { key: 'hit', label: '명중', match: s => !isPvpStat(s) && s.indexOf('명중') >= 0 },
+  { key: 'critres', label: '치명타 저항', match: s => !isPvpStat(s) && s.indexOf('치명타 저항') >= 0 },
 ];
 const STAT_OF = stat => (STATS.find(sd => sd.match(stat)) || null);
 
