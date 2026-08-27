@@ -579,12 +579,47 @@ function renderGoalResult() {
       <div id="goalManaGrid" style="margin-top:10px"></div>
     </details>`;
 
-  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue);
+  renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
 }
 
-function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue) {
+function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvgTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows) {
   const box = $('goalManaGrid');
   if (!box) return;
+  const bestFor = part => (stoneTypeFor(part) === '마석' ? stoneRows[0] : spiritRows[0]);
+
+  const updateHint = part => {
+    const hintEl = $('goalManaHint_' + part);
+    if (!hintEl) return;
+    const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
+    const best = bestFor(part);
+    if (!best) { hintEl.textContent = ''; return; }
+    const slots = GRADE_MAX[entry.grade || '유일'];
+    const theoreticalMax = best.val * slots;
+    const gap = theoreticalMax - (entry.value || 0);
+    hintEl.textContent = gap > 0
+      ? `${best.item} ${best.stage} 기준 이 부위 최대 ${theoreticalMax.toFixed(dp)}${unit}(${slots}칸) 가능 · 지금보다 +${gap.toFixed(dp)}${unit} 더 채울 수 있음`
+      : `이 부위는 이론상 최대치(${theoreticalMax.toFixed(dp)}${unit})에 도달했습니다`;
+  };
+
+  const updatePriority = remain => {
+    const el = $('goalManaPriority');
+    if (!el) return;
+    if (remain <= 0) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">이미 목표를 채웠습니다 — 더 스왑할 필요 없습니다.</div>`; return; }
+    const candidates = relevantParts.map(part => {
+      const entry = goalManaEntries[part] || { grade: '유일', value: 0 };
+      const best = bestFor(part);
+      if (!best) return null;
+      const slots = GRADE_MAX[entry.grade || '유일'];
+      const theoreticalMax = best.val * slots;
+      const gap = theoreticalMax - (entry.value || 0);
+      return gap > 0 ? { part, gap, best } : null;
+    }).filter(Boolean).sort((a, b) => b.gap - a.gap);
+    if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">지금 입력된 부위들은 이미 이론상 최대치라, 이 스탯은 다른 부위·펫·영혼각인으로 더 채워야 합니다.</div>`; return; }
+    let acc = 0, picked = [];
+    for (const c of candidates) { if (acc >= remain) break; picked.push(c); acc += c.gap; }
+    el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}를 마석/영석 스왑으로 채우려면, 우선순위 순으로 <b>${picked.map(c => `${c.part}(${c.best.item} ${c.best.stage}, +${c.gap.toFixed(dp)}${unit})`).join(' → ')}</b>로 바꾸면 됩니다${acc < remain ? ' (그래도 부족하면 다른 부위도 추가로 필요)' : ''}.</div>`;
+  };
+
   const updateSum = () => {
     const sum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
     const total = hasManual ? manualValue : (petAvgTotal + engraveVal + sum);
@@ -603,6 +638,7 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvg
       remainEl.style.color = color;
       if (remainBox) remainBox.style.borderColor = color;
     }
+    updatePriority(remain);
   };
   if (!relevantParts.length) { box.innerHTML = `<div class="odd-nick">이 스탯은 마석/영석 옵션이 없어서 입력할 부위가 없습니다.</div>`; return; }
   box.innerHTML = `
@@ -619,22 +655,31 @@ function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petAvg
             </select>
             <input type="number" class="goalManaValInput" data-part="${part}" value="${entry.value || 0}" step="${sd.pct ? '0.1' : '1'}" style="width:70px">
           </div>
+          <div id="goalManaHint_${part}" class="odd-nick" style="margin-top:3px;font-size:11px"></div>
         </div>`;
       }).join('')}
-    </div>`;
+    </div>
+    <div id="goalManaPriority"></div>`;
   relevantParts.forEach(part => {
     const gradeSel = document.querySelector(`.goalManaGradeSel[data-part="${part}"]`);
     const valInput = document.querySelector(`.goalManaValInput[data-part="${part}"]`);
     gradeSel.addEventListener('change', () => {
       goalManaEntries[part] = goalManaEntries[part] || { grade: '유일', value: 0 };
       goalManaEntries[part].grade = gradeSel.value;
+      updateHint(part);
+      updateSum();
     });
     valInput.addEventListener('input', () => {
       goalManaEntries[part] = goalManaEntries[part] || { grade: '유일', value: 0 };
       goalManaEntries[part].value = parseFloat(valInput.value) || 0;
+      updateHint(part);
       updateSum();
     });
+    updateHint(part);
   });
+  const initialSum = relevantParts.reduce((a, part) => a + ((goalManaEntries[part] && goalManaEntries[part].value) || 0), 0);
+  const initialTotal = hasManual ? manualValue : (petAvgTotal + engraveVal + initialSum);
+  updatePriority(target - initialTotal);
 }
 
 function renderGoalFinder() {
