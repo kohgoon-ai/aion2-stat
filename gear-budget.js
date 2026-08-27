@@ -18,6 +18,8 @@ const STAT_DEFS = [
   // 마석/영석·펫 이해도 데이터엔 없고 영혼각인에만 있는 걸로 확인돼 직접 입력 목록에 추가.
   { key: 'power', label: '위력', cat: 'offense', mode: 'general', names: ['위력'] },
   { key: 'destr', label: '파괴', cat: 'offense', mode: 'general', names: ['파괴'] },
+  // "공격력 증가"는 스탯창의 flat "공격력"과 별개로, 영혼각인에 %로 붙는 공격력 증가 스탯.
+  { key: 'atk_pct', label: '공격력 증가', cat: 'offense', mode: 'general', names: ['공격력 증가'], pct: true },
   { key: 'atk_crit', label: '치명타 공격력', cat: 'offense', mode: 'general', names: ['치명타 공격력'] },
   { key: 'atk_back', label: '후방 공격력', cat: 'offense', mode: 'general', names: ['후방 공격력'] },
   { key: 'atk_front', label: '전방 공격력', cat: 'offense', mode: 'general', names: ['전방 공격력'] },
