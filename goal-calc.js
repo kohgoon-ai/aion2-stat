@@ -52,6 +52,7 @@ function computeGoalPath(statKey) {
 // 몇 칸 들어있는지 개수만 고르면 → 그 개수만큼 수치 입력칸이 뜨는 방식으로 바꿨다.
 let goalManaStatKey = null;
 let goalManaGrade = {}; // part -> '유일'|'영웅' — 부위 등급은 목표 스탯과 무관하니 스탯을 바꿔도 유지한다.
+let goalEngraveValue = 0; // 영혼각인으로 챙긴 수치(총합 직접 입력) — 💎 마석/영석 카드 안에서 입력받는다. 스탯을 바꾸면 초기화된다.
 let goalManaCount = {}; // part -> 이 부위에서 목표 스탯이 들어있는 칸 수 — 스탯을 바꾸면 초기화된다.
 let goalManaValues = {}; // part -> [칸별 수치, ...] (길이 = goalManaCount[part])
 
@@ -84,14 +85,14 @@ function goalMetricBox(id, label, valueHtml, opts) {
 function renderGoalResult() {
   const statKey = $('goalStat').value;
   const target = parseFloat($('goalTarget').value) || 0;
-  const engraveVal = parseFloat($('goalCurrentEngrave').value) || 0;
   const rawManual = $('goalCurrentValue').value;
   const hasManual = rawManual.trim() !== '';
   const manualValue = hasManual ? (parseFloat(rawManual) || 0) : 0;
   const box = $('goalResult');
   if (!statKey) { box.innerHTML = ''; return; }
-  if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaCount = {}; goalManaValues = {}; }
+  if (goalManaStatKey !== statKey) { goalManaStatKey = statKey; goalManaCount = {}; goalManaValues = {}; goalEngraveValue = 0; }
   if (goalPetStatKey !== statKey) { goalPetStatKey = statKey; goalPetCount = {}; goalPetValues = {}; }
+  const engraveVal = goalEngraveValue;
   const sd = STAT_BY_KEY[statKey];
   const unit = sd.pct ? '%' : '';
   const dp = sd.pct ? 2 : 1;
@@ -156,21 +157,38 @@ function renderGoalResult() {
 
     <div class="card" style="margin-top:12px;padding:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="engrave-cat-label" style="margin:0">💎 마석/영석</div>
+        <div class="engrave-cat-label" style="margin:0">💎 마석/영석 · 영혼각인</div>
         <div style="font-size:20px;font-weight:800;color:var(--txt)" id="goalMetricMana">${manaEnteredSum.toFixed(dp)}${unit}</div>
       </div>
+      <div class="field" style="margin-top:8px"><label>✒ 영혼각인으로 챙긴 수치 <span style="color:var(--muted);font-weight:400">(부위별 데이터가 없어서 총합만 직접 입력)</span></label><input type="number" id="goalCurrentEngrave" value="${engraveVal}" step="${dp === 2 ? '0.1' : '1'}"></div>
       <div class="odd-nick" style="margin-top:6px">※ 아래 칸마다 <b>지금 그 부위에 이미 챙긴 수치</b>를 입력하세요. "+N" 배지는 <b>이 부위에서 1칸을 최고 등급 아이템으로 바꾸면(나머지 칸은 0으로 가정) 얼마나 더 늘릴 수 있는지</b>입니다.${bestStoneVal ? ` 마석 최고값: ${stoneRows[0].item} ${stoneRows[0].stage}(${bestStoneVal.toFixed(dp)}${unit}).` : ''}${bestSpiritVal ? ` 영석 최고값: ${spiritRows[0].item} ${spiritRows[0].stage}(${bestSpiritVal.toFixed(dp)}${unit}).` : ''}</div>
       ${tip ? `<div class="note" style="margin-top:8px">${tip}</div>` : ''}
       <div id="goalManaGrid" style="margin-top:10px"></div>
-    </div>
-
-    <div class="card" style="margin-top:12px;padding:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="engrave-cat-label" style="margin:0">✒ 영혼각인</div>
-        <div style="font-size:20px;font-weight:800;color:var(--txt)">${engraveVal.toFixed(dp)}${unit}</div>
-      </div>
-      <div class="odd-nick" style="margin-top:6px">위 ④ 칸에 입력한 값이 그대로 반영됩니다. 부위별 데이터가 없어서 총합만 직접 입력합니다.</div>
     </div>`;
+
+  const engraveInput = $('goalCurrentEngrave');
+  // 타이핑 중엔(input) 대시보드 숫자만 가볍게 갱신하고, 값이 확정되면(change, blur/엔터)
+  // 마석·펫 쪽 "몇 칸 더 필요한지" 제안까지 정확히 다시 계산하려고 전체를 다시 그린다.
+  engraveInput.addEventListener('input', () => {
+    goalEngraveValue = parseFloat(engraveInput.value) || 0;
+    const manaSum = parseFloat(($('goalMetricMana') && $('goalMetricMana').textContent) || '0') || 0;
+    const petTotal = parseFloat(($('goalPetTotalDisplay') && $('goalPetTotalDisplay').textContent) || '0') || 0;
+    const grandTotal = hasManual ? manualValue : (petTotal + goalEngraveValue + manaSum);
+    const remainNow = target - grandTotal;
+    const totalEl = $('goalMetricTotal');
+    const remainEl = $('goalMetricRemain');
+    if (totalEl) totalEl.textContent = `${grandTotal.toFixed(dp)}${unit}`;
+    if (remainEl) {
+      const remainBox = remainEl.closest('div[style*="border"]');
+      remainEl.textContent = remainNow > 0 ? `${remainNow.toFixed(dp)}${unit}` : `+${(-remainNow).toFixed(dp)}${unit}`;
+      const label = remainEl.parentElement.querySelector('div');
+      if (label) label.textContent = remainNow > 0 ? '부족분' : '달성!';
+      const color = remainNow > 0 ? 'var(--red)' : 'var(--gold)';
+      remainEl.style.color = color;
+      if (remainBox) remainBox.style.borderColor = color;
+    }
+  });
+  engraveInput.addEventListener('change', renderGoalResult);
 
   renderGoalPetGrid(petRows, petByRace, petMaxTotal, statKey, sd, dp, unit, target, engraveVal, hasManual, manualValue);
   renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
@@ -488,6 +506,5 @@ function renderGoalFinder() {
 $('goalStat').addEventListener('change', renderGoalResult);
 $('goalTarget').addEventListener('input', renderGoalResult);
 $('goalCurrentValue').addEventListener('input', renderGoalResult);
-$('goalCurrentEngrave').addEventListener('input', renderGoalResult);
 
 renderGoalFinder();
