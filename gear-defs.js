@@ -30,6 +30,9 @@ const STAT_DEFS = [
   { key: 'pve_atk', label: 'PVE 공격력', cat: 'offense', mode: 'pve', names: ['PVE 공격력'] },
   { key: 'pvp_atk', label: 'PVP 공격력', cat: 'offense', mode: 'pvp', names: ['PVP 공격력'] },
   { key: 'pvp_critrate', label: 'PVP 치명타', cat: 'offense', mode: 'pvp', names: ['PVP 치명타'] },
+  // "명중"은 상대 회피를 뚫는 공격 판정 수치라 방어가 아니라 공격 분류.
+  { key: 'hit', label: '명중', cat: 'offense', mode: 'general', names: ['추가 명중'] },
+  { key: 'pvp_hit', label: 'PVP 명중', cat: 'offense', mode: 'pvp', names: ['PVP 명중'] },
 
   { key: 'def', label: '방어력', cat: 'defense', mode: 'general', names: ['방어력'] },
   { key: 'def_add', label: '추가 방어력', cat: 'defense', mode: 'general', names: ['추가 방어력'] },
@@ -38,7 +41,6 @@ const STAT_DEFS = [
   { key: 'def_crit', label: '치명타 방어력', cat: 'defense', mode: 'general', names: ['치명타 방어력'] },
   { key: 'block', label: '막기', cat: 'defense', mode: 'general', names: ['막기'] },
   { key: 'evade', label: '회피', cat: 'defense', mode: 'general', names: ['추가 회피'] },
-  { key: 'hit', label: '명중', cat: 'defense', mode: 'general', names: ['추가 명중'] },
   { key: 'critres', label: '치명타 저항', cat: 'defense', mode: 'general', names: ['치명타 저항'] },
   { key: 'backcritres', label: '후방 치명타 저항', cat: 'defense', mode: 'general', names: ['후방 치명타 저항'] },
   { key: 'frontcritres', label: '전방 치명타 저항', cat: 'defense', mode: 'general', names: ['전방 치명타 저항'] },
@@ -46,7 +48,6 @@ const STAT_DEFS = [
   { key: 'regen', label: '재생', cat: 'defense', mode: 'general', names: ['재생'], pct: true },
   { key: 'pve_def', label: 'PVE 방어력', cat: 'defense', mode: 'pve', names: ['PVE 방어력'] },
   { key: 'pvp_def', label: 'PVP 방어력', cat: 'defense', mode: 'pvp', names: ['PVP 방어력'] },
-  { key: 'pvp_hit', label: 'PVP 명중', cat: 'defense', mode: 'pvp', names: ['PVP 명중'] },
   { key: 'pvp_evade', label: 'PVP 회피', cat: 'defense', mode: 'pvp', names: ['PVP 회피'] },
   { key: 'pvp_critres', label: 'PVP 치명타 저항', cat: 'defense', mode: 'pvp', names: ['PVP 치명타 저항'] },
   { key: 'pvp_block', label: 'PVP 막기', cat: 'defense', mode: 'pvp', names: ['PVP 막기'] },
