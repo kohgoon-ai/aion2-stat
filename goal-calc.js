@@ -2,9 +2,9 @@ const $ = id => document.getElementById(id);
 
 // 스탯 카탈로그·마석/영석 옵션·펫 옵션 조회 함수는 gear-defs.js(공용) 참고.
 // 이 페이지는 스탯 하나만 다루므로 PVE/PVP 탭·관심 스탯 필터 없이 STAT_DEFS 전체를 그대로 쓴다.
-// 펫 이해도는 "챙길 옵션을 골라 범위 안에서 값을 가정"하는 방식이 아니라, 지금 실제로
-// 캐릭터에 붙어 있는 총합을 ④에 직접 입력받는다(영혼각인과 동일한 방식) — 슬롯별 참고
-// 범위는 computeGoalPath()가 계산해서 "얼마나 더 나올 수 있는지" 참고용으로만 보여준다.
+// 펫 이해도는 슬롯마다 "지금 실제로 어떤 옵션이 들어있는지"를 고르고 값을 입력받는다(목표
+// 스탯이 아닌 옵션도 고를 수 있다). 목표 스탯이 들어있는 슬롯만 총합에 더해지고, 다른
+// 스탯이 들어있는 슬롯은 이 슬롯을 목표 스탯으로 바꾸면 얼마나 오르는지 계산해서 보여준다.
 
 // ---------- 목표 수치 달성 경로: 스탯 하나를 어디서 얼마나 챙길 수 있는지 ----------
 function computeGoalPath(statKey) {
@@ -51,9 +51,25 @@ function computeGoalPath(statKey) {
 let goalManaStatKey = null;
 let goalManaEntries = {}; // part -> { grade: '유일'|'영웅', value: number }
 
-// 종족별로 지금 이 스탯을 얼마나 챙겼는지 — 스탯을 바꾸면 초기화된다.
+// 슬롯마다 지금 실제로 어떤 옵션이 들어있는지(꼭 목표 스탯이 아닐 수도 있다) — 스탯을 바꾸면 초기화된다.
 let goalPetStatKey = null;
-let goalPetEntries = {}; // race -> value
+let goalPetEntries = {}; // "race__slot" -> { idx: -1, value: 0 } — idx는 petMatchesForSlot(race,slot) 전체 옵션 목록의 인덱스
+
+// 슬롯에 지금 선택된 옵션이 목표 스탯이면 그 값을, 다른 스탯이면 0을 돌려준다.
+function goalPetRowKey(r) { return `${r.race}__${r.slot}`; }
+function goalPetRowContribution(r, statKey) {
+  const st = goalPetEntries[goalPetRowKey(r)];
+  if (!st || st.idx == null || st.idx < 0) return 0;
+  const m = petMatchesForSlot(r.race, r.slot)[st.idx];
+  if (!m || m.statKey !== statKey) return 0;
+  return st.value || 0;
+}
+function goalPetRowIsOnTarget(r, statKey) {
+  const st = goalPetEntries[goalPetRowKey(r)];
+  if (!st || st.idx == null || st.idx < 0) return false;
+  const m = petMatchesForSlot(r.race, r.slot)[st.idx];
+  return !!(m && m.statKey === statKey);
+}
 
 function goalMetricBox(id, label, valueHtml, opts) {
   opts = opts || {};
@@ -82,7 +98,7 @@ function renderGoalResult() {
   const dp = sd.pct ? 2 : 1;
   const { petRows, petByRace, stoneRows, spiritRows, noOptionRaces } = computeGoalPath(statKey);
   const petRacesWithOption = PET_RACES.filter(r => petByRace[r].slotCount > 0);
-  const petActualTotal = petRows.reduce((a, r) => a + (goalPetEntries[`${r.race}__${r.slot}`] || 0), 0);
+  const petActualTotal = petRows.reduce((a, r) => a + goalPetRowContribution(r, statKey), 0);
   const petAvgSum = petRacesWithOption.reduce((a, r) => a + petByRace[r].avgTotal, 0);
 
   const relevantParts = EQUIP_SLOTS.filter(part => {
@@ -133,8 +149,9 @@ function renderGoalResult() {
         <div class="engrave-cat-label" style="margin:0">🐾 펫 이해도</div>
         <div style="font-size:20px;font-weight:800;color:var(--txt)" id="goalPetTotalDisplay">${petActualTotal.toFixed(dp)}${unit}</div>
       </div>
-      <div class="odd-nick" style="margin-top:6px">종족·슬롯마다 지금 이 스탯을 얼마나 챙겼는지 입력하세요 — 슬롯별로 입력해야 어느 슬롯이 낮아서 부족한지 알 수 있습니다. 각 종족 단락의 "평균 목표"는 그 종족 슬롯들을 평균만큼 챙겼을 때, "최대"는 전 슬롯이 최고값일 때 기준입니다.${petSynergyNote ? ' ' + petSynergyNote : ''}</div>
+      <div class="odd-nick" style="margin-top:6px">종족·슬롯마다 <b>지금 실제로 어떤 옵션이 들어있는지 고르고</b> 수치를 입력하세요 — 목표 스탯이 아닌 다른 옵션을 골라도 됩니다. 이미 목표 스탯이 들어있는 슬롯은 총합에 더해지고, 다른 스탯이 들어있는 슬롯은 "바꾸면 얼마나 오르는지"를 옆에 보여줘서 어느 슬롯을 스왑하면 좋을지 알 수 있습니다.${petSynergyNote ? ' ' + petSynergyNote : ''}</div>
       <div id="goalPetGrid" style="margin-top:10px"></div>
+      <div id="goalPetPriority"></div>
       ${noOptionRaces.length ? `<div class="odd-nick" style="margin-top:4px">※ ${noOptionRaces.join(', ')} 종족엔 이 스탯 옵션이 아예 없어서 뺐습니다.</div>` : ''}
     </div>
 
@@ -156,21 +173,22 @@ function renderGoalResult() {
       <div class="odd-nick" style="margin-top:6px">위 ④ 칸에 입력한 값이 그대로 반영됩니다. 부위별 데이터가 없어서 총합만 직접 입력합니다.</div>
     </div>`;
 
-  renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, hasManual, manualValue);
+  renderGoalPetGrid(petRows, petByRace, statKey, sd, dp, unit, target, engraveVal, hasManual, manualValue);
   renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows);
 }
 
-// 종족 총합 하나만 입력하면 "어느 슬롯이 낮아서 부족한지"를 알 수 없으니,
-// 이 스탯을 챙길 수 있는 슬롯마다(종족별로 최대 9개) 따로 입력받는다.
-function renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, hasManual, manualValue) {
+// 종족 총합만 입력하면 "지금 어떤 슬롯이 목표 스탯이고 어떤 슬롯을 바꿔야 하는지" 알 수 없으니,
+// 슬롯마다 지금 실제로 어떤 옵션이 들어있는지 고르게 하고(목표 스탯이 아니어도 됨), 목표
+// 스탯이 아닌 슬롯은 "바꾸면 얼마나 오르는지"를 계산해서 스왑 우선순위까지 알려준다.
+function renderGoalPetGrid(petRows, petByRace, statKey, sd, dp, unit, target, engraveVal, hasManual, manualValue) {
   const box = $('goalPetGrid');
   if (!box) return;
   if (!petRows.length) { box.innerHTML = `<div class="odd-nick">이 스탯을 주는 펫 이해도 옵션이 없습니다.</div>`; return; }
 
-  const rowKey = r => `${r.race}__${r.slot}`;
+  const rowKey = goalPetRowKey;
 
   const updateAll = () => {
-    const total = petRows.reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
+    const total = petRows.reduce((a, r) => a + goalPetRowContribution(r, statKey), 0);
     const petTotalEl = $('goalPetTotalDisplay');
     if (petTotalEl) petTotalEl.textContent = `${total.toFixed(dp)}${unit}`;
     // 마석/영석 합계는 그대로 두고, 펫 총합만 갱신된 상태로 현재 총합·부족분을 다시 계산한다.
@@ -189,19 +207,58 @@ function renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, has
       remainEl.style.color = color;
       if (remainBox) remainBox.style.borderColor = color;
     }
+    updatePriority(remain);
   };
 
   const updateRaceSubtotal = race => {
     const el = $('goalPetRaceSubtotal_' + race);
     if (!el) return;
-    const sum = petRows.filter(r => r.race === race).reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
+    const sum = petRows.filter(r => r.race === race).reduce((a, r) => a + goalPetRowContribution(r, statKey), 0);
     el.textContent = `${sum.toFixed(dp)}${unit}`;
+  };
+
+  const updatePriority = remain => {
+    const el = $('goalPetPriority');
+    if (!el) return;
+    if (remain <= 0) { el.innerHTML = ''; return; }
+    const candidates = petRows.filter(r => !goalPetRowIsOnTarget(r, statKey)).sort((a, b) => b.max - a.max);
+    if (!candidates.length) { el.innerHTML = `<div class="odd-nick" style="margin-top:8px">스왑할 수 있는 슬롯이 더 없습니다 — 마석/영석이나 영혼각인으로 채워야 합니다.</div>`; return; }
+    let acc = 0, picked = [];
+    for (const c of candidates) { if (acc >= remain) break; picked.push(c); acc += c.max; }
+    el.innerHTML = `<div class="note" style="margin-top:8px">부족분 ${remain.toFixed(dp)}${unit}를 펫 슬롯 스왑으로 채우려면, 우선순위 순으로 <b>${picked.map(c => `${c.race} ${c.slot}번(최대 +${c.max.toFixed(dp)}${unit})`).join(' → ')}</b> 슬롯을 ${sd.label}(으)로 바꾸면 됩니다${acc < remain ? ' (그래도 부족하면 다른 슬롯도 추가로 필요)' : ''}.</div>`;
+  };
+
+  const renderValueCell = r => {
+    const key = rowKey(r);
+    const cell = $('goalPetValCell_' + key);
+    if (!cell) return;
+    const matches = petMatchesForSlot(r.race, r.slot);
+    const state = goalPetEntries[key] || (goalPetEntries[key] = { idx: -1, value: 0 });
+    const m = state.idx >= 0 ? matches[state.idx] : null;
+    if (!m) {
+      cell.innerHTML = `<span class="odd-nick">옵션을 고르면 수치를 입력할 수 있습니다 — ${sd.label}(으)로 바꾸면 최대 ${r.max.toFixed(dp)}${unit}</span>`;
+      return;
+    }
+    const range = parseRange(m.range);
+    if (state.value === 0 || state.value < range.min || state.value > range.max) state.value = range.max;
+    const onTarget = m.statKey === statKey;
+    const badge = onTarget
+      ? `<span style="color:var(--gold);font-size:11px;margin-left:6px">✓ ${sd.label} 기여 중</span>`
+      : `<span class="odd-nick" style="margin-left:6px">다른 스탯 — ${sd.label}(으)로 바꾸면 최대 ${r.max.toFixed(dp)}${unit}</span>`;
+    cell.innerHTML = `<input type="number" class="goalPetValInput" data-key="${key}" value="${state.value}" min="${range.min}" max="${range.max}" step="${range.isPercent ? '0.1' : '1'}" style="width:70px"> <span class="odd-nick">(${m.range})</span>${badge}`;
+    cell.querySelector('.goalPetValInput').addEventListener('input', e => {
+      let v = parseFloat(e.target.value) || 0;
+      v = Math.max(range.min, Math.min(range.max, v));
+      state.value = v;
+      updateRaceSubtotal(r.race);
+      updateAll();
+    });
   };
 
   box.innerHTML = PET_RACES.filter(race => petByRace[race].slotCount > 0).map(race => {
     const rows = petRows.filter(r => r.race === race).sort((a, b) => a.slot - b.slot);
     const b = petByRace[race];
-    const raceSum = rows.reduce((a, r) => a + (goalPetEntries[rowKey(r)] || 0), 0);
+    const raceSum = rows.reduce((a, r) => a + goalPetRowContribution(r, statKey), 0);
     return `
     <details class="card" style="margin-top:8px;padding:10px 12px" open>
       <summary style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px">
@@ -209,26 +266,43 @@ function renderGoalPetGrid(petRows, petByRace, dp, unit, target, engraveVal, has
         <span style="font-size:12px;color:var(--muted)">현재 <b id="goalPetRaceSubtotal_${race}" style="color:var(--txt)">${raceSum.toFixed(dp)}${unit}</b> · 평균 목표 ${b.avgTotal.toFixed(dp)}${unit} · 최대 ${b.maxTotal.toFixed(dp)}${unit}</span>
       </summary>
       <table class="odd-table" style="margin-top:8px">
-        <thead><tr><th>슬롯</th><th>등급</th><th>범위(참고)</th><th>현재 챙긴 수치</th></tr></thead>
-        <tbody>${rows.map(r => `
+        <thead><tr><th>슬롯</th><th>지금 들어있는 옵션</th><th>수치</th></tr></thead>
+        <tbody>${rows.map(r => {
+          const matches = petMatchesForSlot(r.race, r.slot);
+          const tagged = matches.map((m, i) => ({ ...m, i }));
+          const byCat = {};
+          tagged.forEach(m => { if (m.statKey) { const cat = STAT_BY_KEY[m.statKey].cat; (byCat[cat] = byCat[cat] || []).push(m); } });
+          const state = goalPetEntries[rowKey(r)] || { idx: -1, value: 0 };
+          const optHtml = m => `<option value="${m.i}" ${state.idx === m.i ? 'selected' : ''}>[${m.grade}] ${m.stat} (${m.range})</option>`;
+          const selectHtml = `<option value="-1">— 선택 안함 —</option>` +
+            CATEGORIES.filter(c => byCat[c.key] && byCat[c.key].length).map(c => `<optgroup label="${c.label}">${byCat[c.key].map(optHtml).join('')}</optgroup>`).join('');
+          return `
           <tr>
             <td>${r.slot}번</td>
-            <td>${r.grade}</td>
-            <td>${r.min}${unit} ~ ${r.max}${unit}</td>
-            <td><input type="number" class="goalPetValInput" data-key="${rowKey(r)}" value="${goalPetEntries[rowKey(r)] || 0}" step="${dp === 2 ? '0.1' : '1'}" style="width:80px"></td>
-          </tr>`).join('')}</tbody>
+            <td><select class="goalPetSel" data-key="${rowKey(r)}">${selectHtml}</select></td>
+            <td id="goalPetValCell_${rowKey(r)}"></td>
+          </tr>`;
+        }).join('')}</tbody>
       </table>
     </details>`;
   }).join('');
 
   petRows.forEach(r => {
-    const inp = document.querySelector(`.goalPetValInput[data-key="${rowKey(r)}"]`);
-    inp.addEventListener('input', () => {
-      goalPetEntries[rowKey(r)] = parseFloat(inp.value) || 0;
+    const key = rowKey(r);
+    const sel = document.querySelector(`.goalPetSel[data-key="${key}"]`);
+    sel.addEventListener('change', () => {
+      const state = goalPetEntries[key] || (goalPetEntries[key] = { idx: -1, value: 0 });
+      state.idx = parseInt(sel.value, 10);
+      renderValueCell(r);
       updateRaceSubtotal(r.race);
       updateAll();
     });
+    renderValueCell(r);
   });
+  const initialPetTotal = petRows.reduce((a, r) => a + goalPetRowContribution(r, statKey), 0);
+  const initialManaSum = parseFloat(($('goalMetricMana') && $('goalMetricMana').textContent) || '0') || 0;
+  const initialGrandTotal = hasManual ? manualValue : (initialPetTotal + engraveVal + initialManaSum);
+  updatePriority(target - initialGrandTotal);
 }
 
 function renderGoalManaGrid(statKey, relevantParts, sd, dp, unit, target, petActualTotal, engraveVal, hasManual, manualValue, stoneRows, spiritRows) {
