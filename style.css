@@ -21,6 +21,9 @@ h1 span{color:var(--red)}
 .core-cols .field input,.core-cols .field select{width:100%;text-align:left}
 @media(max-width:1150px){.core-cols{grid-template-columns:1fr 1fr}}
 @media(max-width:820px){.core-cols{grid-template-columns:1fr}}
+.core-cols.cols-4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1150px){.core-cols.cols-4{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.core-cols.cols-4{grid-template-columns:1fr}}
 h2{font-size:15px;font-weight:700;color:var(--gold);margin-bottom:14px}
 h2.r{color:var(--red)}
 .field{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0}
