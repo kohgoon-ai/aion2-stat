@@ -23,7 +23,7 @@ const STAT_DEFS = [
   { key: 'atk_front', label: '전방 공격력', cat: 'offense', mode: 'general', names: ['전방 공격력'] },
   { key: 'critrate', label: '치명타', cat: 'offense', mode: 'general', names: ['치명타'] },
   { key: 'pen', label: '관통', cat: 'offense', mode: 'general', names: ['관통'] },
-  { key: 'smite', label: '강타', cat: 'offense', mode: 'general', names: ['강타'] },
+  { key: 'smite', label: '강타', cat: 'offense', mode: 'general', names: ['강타'], pct: true },
   { key: 'backcrit', label: '후방 치명타', cat: 'offense', mode: 'general', names: ['후방 치명타'] },
   { key: 'frontcrit', label: '전방 치명타', cat: 'offense', mode: 'general', names: ['전방 치명타'] },
   { key: 'boss_atk', label: '보스 공격력', cat: 'offense', mode: 'pve', names: ['보스 공격력'] },
@@ -42,8 +42,8 @@ const STAT_DEFS = [
   { key: 'critres', label: '치명타 저항', cat: 'defense', mode: 'general', names: ['치명타 저항'] },
   { key: 'backcritres', label: '후방 치명타 저항', cat: 'defense', mode: 'general', names: ['후방 치명타 저항'] },
   { key: 'frontcritres', label: '전방 치명타 저항', cat: 'defense', mode: 'general', names: ['전방 치명타 저항'] },
-  { key: 'ironwall', label: '철벽', cat: 'defense', mode: 'general', names: ['철벽'] },
-  { key: 'regen', label: '재생', cat: 'defense', mode: 'general', names: ['재생'] },
+  { key: 'ironwall', label: '철벽', cat: 'defense', mode: 'general', names: ['철벽'], pct: true },
+  { key: 'regen', label: '재생', cat: 'defense', mode: 'general', names: ['재생'], pct: true },
   { key: 'pve_def', label: 'PVE 방어력', cat: 'defense', mode: 'pve', names: ['PVE 방어력'] },
   { key: 'pvp_def', label: 'PVP 방어력', cat: 'defense', mode: 'pvp', names: ['PVP 방어력'] },
   { key: 'pvp_hit', label: 'PVP 명중', cat: 'defense', mode: 'pvp', names: ['PVP 명중'] },
@@ -51,22 +51,22 @@ const STAT_DEFS = [
   { key: 'pvp_critres', label: 'PVP 치명타 저항', cat: 'defense', mode: 'pvp', names: ['PVP 치명타 저항'] },
   { key: 'pvp_block', label: 'PVP 막기', cat: 'defense', mode: 'pvp', names: ['PVP 막기'] },
 
-  { key: 'dmgamp', label: '피해 증폭', cat: 'amplify', mode: 'general', names: ['피해 증폭'] },
-  { key: 'wdmgamp', label: '무기 피해 증폭', cat: 'amplify', mode: 'general', names: ['무기 피해 증폭'] },
-  { key: 'backdmgamp', label: '후방 피해 증폭', cat: 'amplify', mode: 'general', names: ['후방 피해 증폭'] },
-  { key: 'frontdmgamp', label: '전방 피해 증폭', cat: 'amplify', mode: 'general', names: ['전방 피해 증폭'] },
-  { key: 'critdmgamp', label: '치명타 피해 증폭', cat: 'amplify', mode: 'general', names: ['치명타 피해 증폭'] },
-  { key: 'racedmgamp', label: '종족 피해 증폭', cat: 'amplify', mode: 'general', names: ['지성족 피해 증폭', '야성족 피해 증폭', '자연족 피해 증폭', '변형족 피해 증폭'] },
-  { key: 'perfect', label: '완벽', cat: 'amplify', mode: 'general', names: ['완벽'] },
-  { key: 'pve_dmgamp', label: 'PVE 피해 증폭', cat: 'amplify', mode: 'pve', names: ['PVE 피해 증폭'] },
-  { key: 'pvp_dmgamp', label: 'PVP 피해 증폭', cat: 'amplify', mode: 'pvp', names: ['PVP 피해 증폭'] },
-  { key: 'dmgres', label: '피해 내성', cat: 'amplify', mode: 'general', names: ['피해 내성'] },
-  { key: 'wdmgres', label: '무기 피해 내성', cat: 'amplify', mode: 'general', names: ['무기 피해 내성'] },
-  { key: 'backdmgres', label: '후방 피해 내성', cat: 'amplify', mode: 'general', names: ['후방 피해 내성'] },
-  { key: 'frontdmgres', label: '전방 피해 내성', cat: 'amplify', mode: 'general', names: ['전방 피해 내성'] },
-  { key: 'critdmgres', label: '치명타 피해 내성', cat: 'amplify', mode: 'general', names: ['치명타 피해 내성'] },
-  { key: 'racedmgres', label: '종족 피해 내성', cat: 'amplify', mode: 'general', names: ['지성족 피해 내성', '야성족 피해 내성', '자연족 피해 내성', '변형족 피해 내성'] },
-  { key: 'pve_dmgres', label: 'PVE 피해 내성', cat: 'amplify', mode: 'pve', names: ['PVE 피해 내성'] },
+  { key: 'dmgamp', label: '피해 증폭', cat: 'amplify', mode: 'general', names: ['피해 증폭'], pct: true },
+  { key: 'wdmgamp', label: '무기 피해 증폭', cat: 'amplify', mode: 'general', names: ['무기 피해 증폭'], pct: true },
+  { key: 'backdmgamp', label: '후방 피해 증폭', cat: 'amplify', mode: 'general', names: ['후방 피해 증폭'], pct: true },
+  { key: 'frontdmgamp', label: '전방 피해 증폭', cat: 'amplify', mode: 'general', names: ['전방 피해 증폭'], pct: true },
+  { key: 'critdmgamp', label: '치명타 피해 증폭', cat: 'amplify', mode: 'general', names: ['치명타 피해 증폭'], pct: true },
+  { key: 'racedmgamp', label: '종족 피해 증폭', cat: 'amplify', mode: 'general', names: ['지성족 피해 증폭', '야성족 피해 증폭', '자연족 피해 증폭', '변형족 피해 증폭'], pct: true },
+  { key: 'perfect', label: '완벽', cat: 'amplify', mode: 'general', names: ['완벽'], pct: true },
+  { key: 'pve_dmgamp', label: 'PVE 피해 증폭', cat: 'amplify', mode: 'pve', names: ['PVE 피해 증폭'], pct: true },
+  { key: 'pvp_dmgamp', label: 'PVP 피해 증폭', cat: 'amplify', mode: 'pvp', names: ['PVP 피해 증폭'], pct: true },
+  { key: 'dmgres', label: '피해 내성', cat: 'amplify', mode: 'general', names: ['피해 내성'], pct: true },
+  { key: 'wdmgres', label: '무기 피해 내성', cat: 'amplify', mode: 'general', names: ['무기 피해 내성'], pct: true },
+  { key: 'backdmgres', label: '후방 피해 내성', cat: 'amplify', mode: 'general', names: ['후방 피해 내성'], pct: true },
+  { key: 'frontdmgres', label: '전방 피해 내성', cat: 'amplify', mode: 'general', names: ['전방 피해 내성'], pct: true },
+  { key: 'critdmgres', label: '치명타 피해 내성', cat: 'amplify', mode: 'general', names: ['치명타 피해 내성'], pct: true },
+  { key: 'racedmgres', label: '종족 피해 내성', cat: 'amplify', mode: 'general', names: ['지성족 피해 내성', '야성족 피해 내성', '자연족 피해 내성', '변형족 피해 내성'], pct: true },
+  { key: 'pve_dmgres', label: 'PVE 피해 내성', cat: 'amplify', mode: 'pve', names: ['PVE 피해 내성'], pct: true },
 
   { key: 'hp', label: '생명력', cat: 'misc', mode: 'general', names: ['생명력'] },
   { key: 'mp', label: '정신력', cat: 'misc', mode: 'general', names: ['정신력'] },
@@ -95,6 +95,11 @@ function visibleStats() {
   return modeStats.filter(sd => focusStats.has(sd.key));
 }
 
+// 마석/영석 원문 표는 증폭·내성류도 "%" 표기 없이 raw 수치(예: 100)로만 나온다.
+// 이 프로젝트 스탯 계산기(index.html/app.js)에서 이미 쓰고 있는 "raw 100 ≈ +1.2%p(사용자 실측 제보 기준)"
+// 환산을 그대로 적용해 raw 값을 %p로 바꿔서 합산한다 — 공식 수치가 아닌 커뮤니티 추정 환산값이다.
+const RAW_TO_PCT = 1.2 / 100;
+
 // ---------- 마석/영석: 매칭되는 (아이템,단계,스탯,수치) 전부를 한 번만 뽑아둔다 ----------
 const MANA_OPTIONS = [];
 (function buildManaOptions() {
@@ -106,7 +111,13 @@ const MANA_OPTIONS = [];
       st.opts.forEach(([stat, val]) => {
         const sd = STAT_OF(stat);
         if (!sd) return;
-        MANA_OPTIONS.push({ item, stage, stat, val: parseFloat(val), statKey: sd.key, label: `${item} ${stage} · ${stat} (${val})` });
+        const raw = parseFloat(val);
+        const isPct = !!sd.pct;
+        const finalVal = isPct ? raw * RAW_TO_PCT : raw;
+        const label = isPct
+          ? `${item} ${stage} · ${stat} (raw ${raw} → 약 ${finalVal.toFixed(2)}%p 환산)`
+          : `${item} ${stage} · ${stat} (${raw})`;
+        MANA_OPTIONS.push({ item, stage, stat, val: finalVal, rawVal: raw, isPct, statKey: sd.key, label });
       });
     });
   });
@@ -371,8 +382,8 @@ function renderEngraveGrid(part) {
       <div class="cost-grid">
         ${opts.map(sd => `
           <div class="cost-cell">
-            <label>${sd.label}</label>
-            <input type="number" class="engraveInput" data-part="${part}" data-stat="${sd.key}" value="${gearState[part].engrave[sd.key] || 0}" step="1">
+            <label>${sd.label}${sd.pct ? ' (%)' : ''}</label>
+            <input type="number" class="engraveInput" data-part="${part}" data-stat="${sd.key}" value="${gearState[part].engrave[sd.key] || 0}" step="${sd.pct ? '0.1' : '1'}">
           </div>`).join('')}
       </div>`;
   }).join('');
@@ -438,12 +449,13 @@ function calc() {
       <tbody>${rowsByCategory.map(({ c, catStats }) => {
         return `<tr class="cat-row"><td colspan="5">${c.label}</td></tr>` + catStats.map(sd => {
           const total = petTotals[sd.key] + manaTotals[sd.key] + engraveTotals[sd.key];
+          const unit = sd.pct ? '%' : '';
           return `<tr>
-            <td>${sd.label}</td>
-            <td>${petTotals[sd.key].toFixed(1)}</td>
-            <td>${manaTotals[sd.key].toFixed(1)}</td>
-            <td>${engraveTotals[sd.key].toFixed(1)}</td>
-            <td class="odd-eff">${total.toFixed(1)}</td>
+            <td>${sd.label}${sd.pct ? ' <span class="odd-nick">(%)</span>' : ''}</td>
+            <td>${petTotals[sd.key].toFixed(1)}${unit}</td>
+            <td>${manaTotals[sd.key].toFixed(1)}${unit}</td>
+            <td>${engraveTotals[sd.key].toFixed(1)}${unit}</td>
+            <td class="odd-eff">${total.toFixed(1)}${unit}</td>
           </tr>`;
         }).join('');
       }).join('')}</tbody>
